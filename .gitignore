@@ -1,0 +1,9 @@
+data/chroma/
+__pycache__/
+*.pyc
+*.pyo
+.env
+aiqa/
+output/spec/
+output/pytest/
+output/ansible/

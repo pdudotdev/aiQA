@@ -1,0 +1,1025 @@
+{
+  "autonomous_systems": {
+    "AS1010": {
+      "description": "Enterprise network",
+      "role": "enterprise_core",
+      "igp": [
+        "OSPF",
+        "EIGRP"
+      ],
+      "edge_routers": [
+        "E1C",
+        "E2C"
+      ]
+    },
+    "AS2020": {
+      "description": "Remote branch site",
+      "role": "enterprise_remote",
+      "igp": [],
+      "edge_routers": [
+        "X1C"
+      ]
+    },
+    "AS4040": {
+      "description": "ISP A",
+      "role": "transit_provider",
+      "customers": [
+        "AS1010",
+        "AS2020"
+      ]
+    },
+    "AS5050": {
+      "description": "ISP B",
+      "role": "transit_provider",
+      "customers": [
+        "AS1010",
+        "AS2020"
+      ]
+    }
+  },
+  "routers": {
+    "A1M": {
+      "roles": [
+        "OSPF_AREA1_LEAF"
+      ],
+      "platform": "mikrotik_routeros",
+      "vrf": "VRF1",
+      "direct_links": {
+        "D1C": {
+          "local_interface": "ether2",
+          "local_ip": "10.1.1.1",
+          "remote_ip": "10.1.1.2",
+          "subnet": "10.1.1.0/30"
+        },
+        "D2B": {
+          "local_interface": "ether3",
+          "local_ip": "10.1.1.5",
+          "remote_ip": "10.1.1.6",
+          "subnet": "10.1.1.4/30"
+        }
+      },
+      "igp": {
+        "ospf": {
+          "router_id": "1.1.1.1",
+          "areas": {
+            "1": [
+              "10.1.1.0/30",
+              "10.1.1.4/30",
+              "192.168.41.1/32"
+            ]
+          },
+          "area_type": "stub",
+          "passive_interfaces": [
+            "lo0"
+          ]
+        }
+      },
+      "loopbacks": {
+        "lo0": "192.168.41.1/32"
+      },
+      "default_gateway": [
+        "D1C",
+        "D2B"
+      ],
+      "host": "172.20.20.201",
+      "cli_style": "routeros",
+      "location": "Access",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "A2A": {
+      "roles": [
+        "OSPF_AREA1_LEAF"
+      ],
+      "platform": "arista_eos",
+      "vrf": "VRF1",
+      "direct_links": {
+        "D1C": {
+          "local_interface": "Ethernet1",
+          "local_ip": "10.1.1.9",
+          "remote_ip": "10.1.1.10",
+          "subnet": "10.1.1.8/30"
+        },
+        "D2B": {
+          "local_interface": "Ethernet2",
+          "local_ip": "10.1.1.13",
+          "remote_ip": "10.1.1.14",
+          "subnet": "10.1.1.12/30"
+        }
+      },
+      "igp": {
+        "ospf": {
+          "router_id": "2.2.2.2",
+          "areas": {
+            "1": [
+              "10.1.1.8/30",
+              "10.1.1.12/30",
+              "192.168.42.1/32"
+            ]
+          },
+          "area_type": "stub",
+          "passive_interfaces": [
+            "Loopback0"
+          ]
+        }
+      },
+      "loopbacks": {
+        "Loopback0": "192.168.42.1/32"
+      },
+      "default_gateway": [
+        "D1C",
+        "D2B"
+      ],
+      "host": "172.20.20.202",
+      "cli_style": "eos",
+      "location": "Access",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "A3A": {
+      "roles": [
+        "OSPF_AREA1_LEAF"
+      ],
+      "platform": "arista_eos",
+      "vrf": "VRF1",
+      "direct_links": {
+        "D1C": {
+          "local_interface": "Ethernet2",
+          "local_ip": "10.1.1.17",
+          "remote_ip": "10.1.1.18",
+          "subnet": "10.1.1.16/30"
+        },
+        "D2B": {
+          "local_interface": "Ethernet1",
+          "local_ip": "10.1.1.21",
+          "remote_ip": "10.1.1.22",
+          "subnet": "10.1.1.20/30"
+        }
+      },
+      "igp": {
+        "ospf": {
+          "router_id": "3.3.3.3",
+          "areas": {
+            "1": [
+              "10.1.1.16/30",
+              "10.1.1.20/30",
+              "192.168.43.1/32"
+            ]
+          },
+          "area_type": "stub",
+          "passive_interfaces": [
+            "Loopback0"
+          ]
+        }
+      },
+      "loopbacks": {
+        "Loopback0": "192.168.43.1/32"
+      },
+      "default_gateway": [
+        "D1C",
+        "D2B"
+      ],
+      "host": "172.20.20.203",
+      "cli_style": "eos",
+      "location": "Access",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "A4M": {
+      "roles": [
+        "OSPF_AREA1_LEAF"
+      ],
+      "platform": "mikrotik_routeros",
+      "vrf": "VRF1",
+      "direct_links": {
+        "D1C": {
+          "local_interface": "ether3",
+          "local_ip": "10.1.1.25",
+          "remote_ip": "10.1.1.26",
+          "subnet": "10.1.1.24/30"
+        },
+        "D2B": {
+          "local_interface": "ether2",
+          "local_ip": "10.1.1.29",
+          "remote_ip": "10.1.1.30",
+          "subnet": "10.1.1.28/30"
+        }
+      },
+      "igp": {
+        "ospf": {
+          "router_id": "4.4.4.4",
+          "areas": {
+            "1": [
+              "10.1.1.24/30",
+              "10.1.1.28/30",
+              "192.168.44.1/32"
+            ]
+          },
+          "area_type": "stub",
+          "passive_interfaces": [
+            "lo0"
+          ]
+        }
+      },
+      "loopbacks": {
+        "lo0": "192.168.44.1/32"
+      },
+      "default_gateway": [
+        "D1C",
+        "D2B"
+      ],
+      "host": "172.20.20.204",
+      "cli_style": "routeros",
+      "location": "Access",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "D1C": {
+      "roles": [
+        "ABR",
+        "OSPF_AREA0_DISTRIBUTION",
+        "EIGRP_REDISTRIBUTION"
+      ],
+      "platform": "cisco_iosxe",
+      "vrf": "VRF1",
+      "direct_links": {
+        "A1M": {
+          "local_interface": "Ethernet0/1",
+          "local_ip": "10.1.1.2",
+          "remote_ip": "10.1.1.1",
+          "subnet": "10.1.1.0/30"
+        },
+        "A2A": {
+          "local_interface": "Ethernet0/2",
+          "local_ip": "10.1.1.10",
+          "remote_ip": "10.1.1.9",
+          "subnet": "10.1.1.8/30"
+        },
+        "A3A": {
+          "local_interface": "Ethernet0/3",
+          "local_ip": "10.1.1.18",
+          "remote_ip": "10.1.1.17",
+          "subnet": "10.1.1.16/30"
+        },
+        "A4M": {
+          "local_interface": "Ethernet1/0",
+          "local_ip": "10.1.1.26",
+          "remote_ip": "10.1.1.25",
+          "subnet": "10.1.1.24/30"
+        },
+        "D2B": {
+          "local_interface": "Ethernet1/1",
+          "local_ip": "10.0.0.1",
+          "remote_ip": "10.0.0.2",
+          "subnet": "10.0.0.0/30"
+        },
+        "C1J": {
+          "local_interface": "Ethernet1/3",
+          "local_ip": "10.0.0.5",
+          "remote_ip": "10.0.0.6",
+          "subnet": "10.0.0.4/30"
+        },
+        "C2A": {
+          "local_interface": "Ethernet1/2",
+          "local_ip": "10.0.0.9",
+          "remote_ip": "10.0.0.10",
+          "subnet": "10.0.0.8/30"
+        },
+        "B1C": {
+          "local_interface": "Ethernet2/0",
+          "local_ip": "10.10.10.2",
+          "remote_ip": "10.10.10.1",
+          "subnet": "10.10.10.0/30"
+        },
+        "B2C": {
+          "local_interface": "Ethernet2/1",
+          "local_ip": "10.10.10.6",
+          "remote_ip": "10.10.10.5",
+          "subnet": "10.10.10.4/30"
+        }
+      },
+      "igp": {
+        "ospf": {
+          "router_id": "11.11.11.11",
+          "process": 1,
+          "areas": {
+            "0": [
+              "10.0.0.0/30",
+              "10.0.0.4/30",
+              "10.0.0.8/30"
+            ],
+            "1": [
+              "10.1.1.0/30",
+              "10.1.1.8/30",
+              "10.1.1.16/30",
+              "10.1.1.24/30"
+            ]
+          },
+          "area_types": {
+            "1": "stub"
+          },
+          "area_ranges": {
+            "1": [
+              "10.1.1.0/24"
+            ]
+          }
+        },
+        "eigrp": {
+          "as": 10,
+          "networks": [
+            "10.10.10.0/30",
+            "10.10.10.4/30"
+          ],
+          "redistributes": [
+            "ospf 1"
+          ]
+        }
+      },
+      "routing_policies": {
+        "redistribution": {
+          "ospf_to_eigrp": "route-map OSPF-TO-EIGRP",
+          "eigrp_to_ospf": "metric-type 1"
+        }
+      },
+      "host": "172.20.20.205",
+      "cli_style": "ios",
+      "location": "Distribution",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "D2B": {
+      "roles": [
+        "ABR",
+        "OSPF_AREA0_DISTRIBUTION"
+      ],
+      "platform": "aruba_aoscx",
+      "vrf": null,
+      "direct_links": {
+        "A1M": {
+          "local_interface": "1/1/2",
+          "local_ip": "10.1.1.6",
+          "remote_ip": "10.1.1.5",
+          "subnet": "10.1.1.4/30"
+        },
+        "A2A": {
+          "local_interface": "1/1/3",
+          "local_ip": "10.1.1.14",
+          "remote_ip": "10.1.1.13",
+          "subnet": "10.1.1.12/30"
+        },
+        "A3A": {
+          "local_interface": "1/1/4",
+          "local_ip": "10.1.1.22",
+          "remote_ip": "10.1.1.21",
+          "subnet": "10.1.1.20/30"
+        },
+        "A4M": {
+          "local_interface": "1/1/5",
+          "local_ip": "10.1.1.30",
+          "remote_ip": "10.1.1.29",
+          "subnet": "10.1.1.28/30"
+        },
+        "D1C": {
+          "local_interface": "1/1/8",
+          "local_ip": "10.0.0.2",
+          "remote_ip": "10.0.0.1",
+          "subnet": "10.0.0.0/30"
+        },
+        "C1J": {
+          "local_interface": "1/1/7",
+          "local_ip": "10.0.0.13",
+          "remote_ip": "10.0.0.14",
+          "subnet": "10.0.0.12/30"
+        },
+        "C2A": {
+          "local_interface": "1/1/6",
+          "local_ip": "10.0.0.17",
+          "remote_ip": "10.0.0.18",
+          "subnet": "10.0.0.16/30"
+        }
+      },
+      "igp": {
+        "ospf": {
+          "router_id": "11.11.11.22",
+          "process": 1,
+          "areas": {
+            "0": [
+              "10.0.0.0/30",
+              "10.0.0.12/30",
+              "10.0.0.16/30"
+            ],
+            "1": [
+              "10.1.1.4/30",
+              "10.1.1.12/30",
+              "10.1.1.20/30",
+              "10.1.1.28/30"
+            ]
+          },
+          "area_types": {
+            "1": "stub"
+          },
+          "area_ranges": {
+            "1": [
+              "10.1.1.0/24"
+            ]
+          },
+          "note": "Runs in default VRF (no VRF1 on AOS-CX in this topology)"
+        }
+      },
+      "host": "172.20.20.206",
+      "cli_style": "aos",
+      "location": "Distribution",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "C1J": {
+      "roles": [
+        "OSPF_AREA0_CORE"
+      ],
+      "platform": "juniper_junos",
+      "vrf": "VRF1",
+      "direct_links": {
+        "D1C": {
+          "local_interface": "et-0/0/4",
+          "local_ip": "10.0.0.6",
+          "remote_ip": "10.0.0.5",
+          "subnet": "10.0.0.4/30"
+        },
+        "D2B": {
+          "local_interface": "et-0/0/3",
+          "local_ip": "10.0.0.14",
+          "remote_ip": "10.0.0.13",
+          "subnet": "10.0.0.12/30"
+        },
+        "C2A": {
+          "local_interface": "et-0/0/2",
+          "local_ip": "10.0.0.21",
+          "remote_ip": "10.0.0.22",
+          "subnet": "10.0.0.20/30"
+        },
+        "E1C": {
+          "local_interface": "et-0/0/0",
+          "local_ip": "10.0.0.25",
+          "remote_ip": "10.0.0.26",
+          "subnet": "10.0.0.24/30"
+        },
+        "E2C": {
+          "local_interface": "et-0/0/1",
+          "local_ip": "10.0.0.29",
+          "remote_ip": "10.0.0.30",
+          "subnet": "10.0.0.28/30"
+        }
+      },
+      "igp": {
+        "ospf": {
+          "router_id": "22.22.22.11",
+          "areas": {
+            "0": [
+              "10.0.0.4/30",
+              "10.0.0.12/30",
+              "10.0.0.20/30",
+              "10.0.0.24/30",
+              "10.0.0.28/30"
+            ]
+          }
+        }
+      },
+      "host": "172.20.20.207",
+      "cli_style": "junos",
+      "location": "Core",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "C2A": {
+      "roles": [
+        "OSPF_AREA0_CORE"
+      ],
+      "platform": "arista_eos",
+      "vrf": "VRF1",
+      "direct_links": {
+        "D1C": {
+          "local_interface": "Ethernet3",
+          "local_ip": "10.0.0.10",
+          "remote_ip": "10.0.0.9",
+          "subnet": "10.0.0.8/30"
+        },
+        "D2B": {
+          "local_interface": "Ethernet2",
+          "local_ip": "10.0.0.18",
+          "remote_ip": "10.0.0.17",
+          "subnet": "10.0.0.16/30"
+        },
+        "C1J": {
+          "local_interface": "Ethernet4",
+          "local_ip": "10.0.0.22",
+          "remote_ip": "10.0.0.21",
+          "subnet": "10.0.0.20/30"
+        },
+        "DC1A": {
+          "local_interface": "Ethernet1",
+          "local_ip": "10.0.0.42",
+          "remote_ip": "10.0.0.41",
+          "subnet": "10.0.0.40/30"
+        },
+        "E1C": {
+          "local_interface": "Ethernet5",
+          "local_ip": "10.0.0.33",
+          "remote_ip": "10.0.0.34",
+          "subnet": "10.0.0.32/30"
+        },
+        "E2C": {
+          "local_interface": "Ethernet6",
+          "local_ip": "10.0.0.37",
+          "remote_ip": "10.0.0.38",
+          "subnet": "10.0.0.36/30"
+        }
+      },
+      "igp": {
+        "ospf": {
+          "router_id": "22.22.22.22",
+          "process": 1,
+          "areas": {
+            "0": [
+              "10.0.0.8/30",
+              "10.0.0.16/30",
+              "10.0.0.20/30",
+              "10.0.0.32/30",
+              "10.0.0.36/30",
+              "10.0.0.40/30"
+            ]
+          }
+        }
+      },
+      "host": "172.20.20.208",
+      "cli_style": "eos",
+      "location": "Core",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "DC1A": {
+      "roles": [
+        "OSPF_AREA0_DC"
+      ],
+      "platform": "arista_eos",
+      "vrf": "VRF1",
+      "direct_links": {
+        "C2A": {
+          "local_interface": "Ethernet1",
+          "local_ip": "10.0.0.41",
+          "remote_ip": "10.0.0.42",
+          "subnet": "10.0.0.40/30"
+        }
+      },
+      "igp": {
+        "ospf": {
+          "router_id": "9.9.9.9",
+          "areas": {
+            "0": [
+              "10.0.0.40/30",
+              "10.9.9.1/32"
+            ]
+          },
+          "passive_interfaces": [
+            "Loopback0"
+          ]
+        }
+      },
+      "loopbacks": {
+        "Loopback0": "10.9.9.1/32"
+      },
+      "host": "172.20.20.219",
+      "cli_style": "eos",
+      "location": "Data Center",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "E1C": {
+      "roles": [
+        "ASBR",
+        "NAT_EDGE"
+      ],
+      "platform": "cisco_iosxe",
+      "vrf": "VRF1",
+      "asn": 1010,
+      "direct_links": {
+        "C1J": {
+          "local_interface": "GigabitEthernet2",
+          "local_ip": "10.0.0.26",
+          "remote_ip": "10.0.0.25",
+          "subnet": "10.0.0.24/30"
+        },
+        "C2A": {
+          "local_interface": "GigabitEthernet3",
+          "local_ip": "10.0.0.34",
+          "remote_ip": "10.0.0.33",
+          "subnet": "10.0.0.32/30"
+        },
+        "IAN": {
+          "local_interface": "GigabitEthernet5",
+          "local_ip": "200.40.40.1",
+          "remote_ip": "200.40.40.2",
+          "subnet": "200.40.40.0/30"
+        },
+        "IBN": {
+          "local_interface": "GigabitEthernet4",
+          "local_ip": "200.50.50.1",
+          "remote_ip": "200.50.50.2",
+          "subnet": "200.50.50.0/30"
+        }
+      },
+      "igp": {
+        "ospf": {
+          "router_id": "33.33.33.11",
+          "areas": {
+            "0": [
+              "10.0.0.24/30",
+              "10.0.0.32/30"
+            ]
+          },
+          "default_originate": {
+            "enabled": true,
+            "type": "E1",
+            "always": true
+          },
+          "passive_interfaces": [
+            "GigabitEthernet4",
+            "GigabitEthernet5"
+          ]
+        }
+      },
+      "bgp": {
+        "neighbors": {
+          "ISP_A": {
+            "peer": "200.40.40.2",
+            "as": 4040
+          },
+          "ISP_B": {
+            "peer": "200.50.50.2",
+            "as": 5050
+          }
+        },
+        "policy": {
+          "accept_default_only": true,
+          "advertise_internal": false
+        }
+      },
+      "nat": {
+        "mode": "PAT",
+        "inside_domains": [
+          "OSPF"
+        ],
+        "outside_links": [
+          "ISP_A",
+          "ISP_B"
+        ]
+      },
+      "host": "172.20.20.209",
+      "cli_style": "ios",
+      "location": "Edge",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "E2C": {
+      "roles": [
+        "ASBR",
+        "NAT_EDGE"
+      ],
+      "platform": "cisco_iosxe",
+      "vrf": "VRF1",
+      "asn": 1010,
+      "direct_links": {
+        "C1J": {
+          "local_interface": "GigabitEthernet3",
+          "local_ip": "10.0.0.30",
+          "remote_ip": "10.0.0.29",
+          "subnet": "10.0.0.28/30"
+        },
+        "C2A": {
+          "local_interface": "GigabitEthernet2",
+          "local_ip": "10.0.0.38",
+          "remote_ip": "10.0.0.37",
+          "subnet": "10.0.0.36/30"
+        },
+        "IAN": {
+          "local_interface": "GigabitEthernet4",
+          "local_ip": "200.40.40.5",
+          "remote_ip": "200.40.40.6",
+          "subnet": "200.40.40.4/30"
+        },
+        "IBN": {
+          "local_interface": "GigabitEthernet5",
+          "local_ip": "200.50.50.5",
+          "remote_ip": "200.50.50.6",
+          "subnet": "200.50.50.4/30"
+        }
+      },
+      "igp": {
+        "ospf": {
+          "router_id": "33.33.33.22",
+          "areas": {
+            "0": [
+              "10.0.0.28/30",
+              "10.0.0.36/30"
+            ]
+          },
+          "default_originate": {
+            "enabled": true,
+            "type": "E1",
+            "always": true
+          },
+          "passive_interfaces": [
+            "GigabitEthernet4",
+            "GigabitEthernet5"
+          ]
+        }
+      },
+      "bgp": {
+        "neighbors": {
+          "ISP_A": {
+            "peer": "200.40.40.6",
+            "as": 4040
+          },
+          "ISP_B": {
+            "peer": "200.50.50.6",
+            "as": 5050
+          }
+        },
+        "policy": {
+          "accept_default_only": true,
+          "advertise_internal": false
+        }
+      },
+      "nat": {
+        "mode": "PAT",
+        "inside_domains": [
+          "OSPF"
+        ],
+        "outside_links": [
+          "ISP_A",
+          "ISP_B"
+        ]
+      },
+      "host": "172.20.20.210",
+      "cli_style": "ios",
+      "location": "Edge",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "B1C": {
+      "roles": [
+        "EIGRP_BRANCH"
+      ],
+      "platform": "cisco_iosxe",
+      "vrf": "VRF1",
+      "direct_links": {
+        "D1C": {
+          "local_interface": "Ethernet0/1",
+          "local_ip": "10.10.10.1",
+          "remote_ip": "10.10.10.2",
+          "subnet": "10.10.10.0/30"
+        },
+        "B2C": {
+          "local_interface": "Ethernet0/2",
+          "local_ip": "10.10.10.10",
+          "remote_ip": "10.10.10.9",
+          "subnet": "10.10.10.8/30"
+        }
+      },
+      "igp": {
+        "eigrp": {
+          "as": 10,
+          "networks": [
+            "10.10.10.0/30",
+            "10.10.10.8/30",
+            "172.16.110.1/32"
+          ]
+        }
+      },
+      "loopbacks": {
+        "Loopback0": "172.16.110.1/32"
+      },
+      "host": "172.20.20.211",
+      "cli_style": "ios",
+      "location": "Local Branch",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "B2C": {
+      "roles": [
+        "EIGRP_BRANCH"
+      ],
+      "platform": "cisco_iosxe",
+      "vrf": "VRF1",
+      "direct_links": {
+        "D1C": {
+          "local_interface": "Ethernet0/1",
+          "local_ip": "10.10.10.5",
+          "remote_ip": "10.10.10.6",
+          "subnet": "10.10.10.4/30"
+        },
+        "B1C": {
+          "local_interface": "Ethernet0/2",
+          "local_ip": "10.10.10.9",
+          "remote_ip": "10.10.10.10",
+          "subnet": "10.10.10.8/30"
+        }
+      },
+      "igp": {
+        "eigrp": {
+          "as": 10,
+          "networks": [
+            "10.10.10.4/30",
+            "10.10.10.8/30",
+            "172.16.210.1/32"
+          ]
+        }
+      },
+      "loopbacks": {
+        "Loopback0": "172.16.210.1/32"
+      },
+      "host": "172.20.20.212",
+      "cli_style": "ios",
+      "location": "Local Branch",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "IAN": {
+      "roles": [
+        "ISP_A_EDGE"
+      ],
+      "platform": "cisco_iosxe",
+      "vrf": "VRF1",
+      "asn": 4040,
+      "direct_links": {
+        "E1C": {
+          "local_interface": "Ethernet0/1",
+          "local_ip": "200.40.40.2",
+          "remote_ip": "200.40.40.1",
+          "subnet": "200.40.40.0/30"
+        },
+        "E2C": {
+          "local_interface": "Ethernet0/2",
+          "local_ip": "200.40.40.6",
+          "remote_ip": "200.40.40.5",
+          "subnet": "200.40.40.4/30"
+        },
+        "X1C": {
+          "local_interface": "Ethernet0/3",
+          "local_ip": "200.40.8.2",
+          "remote_ip": "200.40.8.1",
+          "subnet": "200.40.8.0/30"
+        }
+      },
+      "bgp": {
+        "neighbors": {
+          "E1C": {
+            "peer": "200.40.40.1",
+            "as": 1010
+          },
+          "E2C": {
+            "peer": "200.40.40.5",
+            "as": 1010
+          },
+          "X1C": {
+            "peer": "200.40.8.1",
+            "as": 2020
+          }
+        },
+        "networks": [
+          "200.40.8.0/30",
+          "200.40.40.0/30",
+          "200.40.40.4/30"
+        ],
+        "policy": {
+          "send_default_to_customers": true
+        }
+      },
+      "host": "172.20.20.220",
+      "cli_style": "ios",
+      "location": "ISP A",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "IBN": {
+      "roles": [
+        "ISP_B_EDGE"
+      ],
+      "platform": "cisco_iosxe",
+      "vrf": "VRF1",
+      "asn": 5050,
+      "direct_links": {
+        "E1C": {
+          "local_interface": "Ethernet0/2",
+          "local_ip": "200.50.50.2",
+          "remote_ip": "200.50.50.1",
+          "subnet": "200.50.50.0/30"
+        },
+        "E2C": {
+          "local_interface": "Ethernet0/1",
+          "local_ip": "200.50.50.6",
+          "remote_ip": "200.50.50.5",
+          "subnet": "200.50.50.4/30"
+        },
+        "X1C": {
+          "local_interface": "Ethernet0/3",
+          "local_ip": "200.50.8.2",
+          "remote_ip": "200.50.8.1",
+          "subnet": "200.50.8.0/30"
+        }
+      },
+      "bgp": {
+        "neighbors": {
+          "E1C": {
+            "peer": "200.50.50.1",
+            "as": 1010
+          },
+          "E2C": {
+            "peer": "200.50.50.5",
+            "as": 1010
+          },
+          "X1C": {
+            "peer": "200.50.8.1",
+            "as": 2020
+          }
+        },
+        "networks": [
+          "200.50.8.0/30",
+          "200.50.50.0/30",
+          "200.50.50.4/30"
+        ],
+        "policy": {
+          "send_default_to_customers": true
+        }
+      },
+      "host": "172.20.20.230",
+      "cli_style": "ios",
+      "location": "ISP B",
+      "transport": [
+        "ssh"
+      ]
+    },
+    "X1C": {
+      "roles": [
+        "ASBR"
+      ],
+      "platform": "cisco_iosxe",
+      "vrf": "VRF1",
+      "asn": 2020,
+      "direct_links": {
+        "IAN": {
+          "local_interface": "GigabitEthernet2",
+          "local_ip": "200.40.8.1",
+          "remote_ip": "200.40.8.2",
+          "subnet": "200.40.8.0/30"
+        },
+        "IBN": {
+          "local_interface": "GigabitEthernet3",
+          "local_ip": "200.50.8.1",
+          "remote_ip": "200.50.8.2",
+          "subnet": "200.50.8.0/30"
+        }
+      },
+      "bgp": {
+        "neighbors": {
+          "ISP_A": {
+            "peer": "200.40.8.2",
+            "as": 4040
+          },
+          "ISP_B": {
+            "peer": "200.50.8.2",
+            "as": 5050
+          }
+        },
+        "networks": [
+          "8.8.8.8/32"
+        ],
+        "policy": {
+          "accept_default_only": true
+        }
+      },
+      "loopbacks": {
+        "Loopback0": "8.8.8.8/32"
+      },
+      "host": "172.20.20.240",
+      "cli_style": "ios",
+      "location": "Remote Branch",
+      "transport": [
+        "ssh"
+      ]
+    }
+  }
+}
