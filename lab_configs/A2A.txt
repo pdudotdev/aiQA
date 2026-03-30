@@ -1,0 +1,80 @@
+! Startup-config last modified at Thu Mar 19 13:30:04 2026 by root
+! device: A2A (cEOSLab, EOS-4.35.0F-44178984.4350F (engineering build))
+!
+no aaa root
+!
+username admin privilege 15 role network-admin secret sha512 $6$WYIFji2gEpzUYRcO$.HuCO/Do2vQ1JnfpBEFWA5BSFXR1/JD74PVx5HheEI.7fR6ptlnfCD0oJNGrNdPMl9mC.dS64fgNGKgKsQXmE/
+!
+management api http-commands
+   no shutdown
+!
+no service interface inactive port-id allocation disabled
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+logging host 172.20.20.1
+logging format rfc5424
+!
+hostname A2A
+!
+spanning-tree mode mstp
+!
+system l1
+   unsupported speed action error
+   unsupported error-correction action error
+!
+vrf instance VRF1
+!
+management api gnmi
+   transport grpc default
+!
+management api netconf
+   transport ssh default
+!
+interface Loopback 0
+   vrf VRF1
+   ip address 192.168.42.1/32   
+!
+interface Ethernet1
+   description TO-D1C
+   no switchport
+   vrf VRF1
+   ip address 10.1.1.9/30
+   no shutdown
+!
+interface Ethernet2
+   description TO-D2B
+   no switchport
+   vrf VRF1
+   ip address 10.1.1.13/30
+   no shutdown
+!
+interface Management0
+   ip address 172.20.20.202/24
+!
+ip routing
+ip routing vrf VRF1
+!
+ip route 0.0.0.0/0 172.20.20.1
+!
+ipv6 route ::/0 3fff:172:20:20::1
+!
+ntp server 172.20.20.1 prefer
+!
+router multicast
+   ipv4
+      software-forwarding kernel
+   !
+   ipv6
+      software-forwarding kernel
+!
+router ospf 1 vrf VRF1
+   router-id 2.2.2.2
+   network 10.1.1.0/24 area 1
+   network 192.168.42.1/32 area 1
+   area 1 stub
+   max-lsa 12000
+!
+end

@@ -1,0 +1,46 @@
+# 2026-03-06 18:33:49 by RouterOS 7.20.8
+# system id = yt20u9GiBlE
+#
+/interface bridge
+add comment=Loopback0 name=lo0
+/interface ethernet
+set [ find default-name=ether1 ] disable-running-check=no
+set [ find default-name=ether2 ] comment=TO-D2B disable-running-check=no
+set [ find default-name=ether3 ] comment=TO-D1C disable-running-check=no
+/ip vrf
+add interfaces=ether2,ether3,lo0 name=VRF1
+/port
+set 0 name=serial0
+/routing ospf instance
+add disabled=no name=default router-id=4.4.4.4 vrf=VRF1
+/routing ospf area
+add area-id=0.0.0.1 disabled=no instance=default name=area1 type=stub
+/system logging action
+add name=remoteSyslog remote=172.20.20.1 remote-log-format=syslog \
+    syslog-facility=local7 target=remote
+/ip address
+add address=10.1.1.25/30 interface=ether3 network=10.1.1.24
+add address=10.1.1.29/30 interface=ether2 network=10.1.1.28
+add address=192.168.44.1 interface=lo0 network=192.168.44.1
+/ip dhcp-client
+/ip route
+add dst-address=172.20.20.0/24 gateway=172.31.255.29
+/routing ospf interface-template
+add area=area1 disabled=no interfaces=ether2
+add area=area1 disabled=no interfaces=ether3
+add area=area1 disabled=no interfaces=lo0 passive
+/system identity
+set name=A4M
+/system logging
+add action=remoteSyslog topics=netwatch,info
+/system ntp client
+set enabled=yes
+/system ntp client servers
+add address=172.20.20.1
+# /certificate
+# add name=lab-ca common-name=lab-ca days-valid=3650 key-size=2048 key-usage=key-cert-sign,crl-sign
+# sign lab-ca
+# add name=restconf-cert common-name=A1M days-valid=3650 key-size=2048 key-usage=digital-signature,key-encipherment,tls-server
+# sign restconf-cert ca=lab-ca
+# /ip service 
+# set www-ssl certificate=restconf-cert disabled=no

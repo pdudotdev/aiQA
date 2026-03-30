@@ -1,0 +1,110 @@
+## Last commit: 2026-03-06 12:47:36 UTC by admin
+version 25.4R1.13-EVO;
+system {
+    host-name C1J;
+    root-authentication {
+        encrypted-password "$6$yTUZ0oUw$pu/3kQGhZhDnWpCru15fCZEGTbil4TVG4HkywLyRDIydZD7t5aQ.DFVSoBxsRlMtC5sqmFA17Re.UdyVkLM8k."; ## SECRET-DATA
+    }
+    login {
+        user admin {
+            uid 500;
+            class superuser;
+            authentication {
+                encrypted-password "$6$9YSzwiCD$ZiMI1N.5fcWCe5fH8hZz/FtISY4K8QKjv9p0w6Hkyct71ke1bn3OQQk0oi7/l5Sn8yP1CClO9CeGSMpNQcFjT/"; ## SECRET-DATA
+            }
+        }
+    }
+    syslog {
+        host 172.20.20.1 {
+            any any;
+        }
+        file interactive-commands {
+            interactive-commands any;
+        }
+        file messages {
+            any notice;
+            authorization info;
+        }
+    }
+    services {
+        netconf {
+            ssh;
+        }
+        ssh;
+    }
+    ntp {
+        server 172.20.20.1;
+        source-address 172.20.20.207;
+    }
+}
+interfaces {
+    et-0/0/0 {
+        unit 0 {
+            family inet {               
+                address 10.0.0.25/30;
+            }
+        }
+    }
+    et-0/0/1 {
+        unit 0 {
+            family inet {
+                address 10.0.0.29/30;
+            }
+        }
+    }
+    et-0/0/2 {
+        unit 0 {
+            family inet {
+                address 10.0.0.21/30;
+            }
+        }
+    }
+    et-0/0/3 {
+        unit 0 {
+            family inet {
+                address 10.0.0.14/30;
+            }
+        }
+    }
+    et-0/0/4 {
+        unit 0 {
+            family inet {
+                address 10.0.0.6/30;
+            }
+        }
+    }
+    re0:mgmt-0 {
+        unit 0 {
+            family inet {
+                address 172.20.20.207/24;
+            }
+        }
+    }                                   
+}
+routing-instances {
+    VRF1 {
+        instance-type virtual-router;
+        routing-options {
+            router-id 22.22.22.11;
+        }
+        protocols {
+            ospf {
+                area 0.0.0.0 {
+                    interface et-0/0/0.0;
+                    interface et-0/0/1.0;
+                    interface et-0/0/2.0;
+                    interface et-0/0/3.0;
+                    interface et-0/0/4.0;
+                }
+            }
+        }
+        interface et-0/0/0.0;
+        interface et-0/0/1.0;
+        interface et-0/0/2.0;
+        interface et-0/0/3.0;
+        interface et-0/0/4.0;
+    }
+}
+routing-options {
+    router-id 22.22.22.11;
+}

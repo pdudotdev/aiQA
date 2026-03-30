@@ -1,0 +1,70 @@
+!
+!Version ArubaOS-CX Virtual.10.07.0004
+!export-password: default
+hostname D2B
+user admin group administrators password ciphertext AQBapeASBqNpuvOCVLxCA06EBrNw7dpfUG6+XBIpMgkE+ts+YgAAAEdLZSonpT99vrfCMCrgEX8aEZ6UY968L03694i+1pCvdN26uT11OxIRT5R10hs8l1ZPrmsIVorvPlDyFEvxWmI1Yi3Pv44zLvfLfIU/nXtxCIEo0CcKMu2xXGCzPvks10QG
+led locator on
+ntp server 172.20.20.1
+ntp server pool.ntp.org minpoll 4 maxpoll 4 iburst
+ntp enable
+ntp vrf mgmt
+!
+!
+!
+!
+!
+!
+logging 172.20.20.1 vrf mgmt
+ssh server vrf mgmt
+vlan 1
+!
+router ospf 1
+    router-id 11.11.11.22
+    area 0.0.0.0
+    area 0.0.0.1 stub
+    area 0.0.0.1 range 10.1.1.0/24 type inter-area
+!
+interface mgmt
+    no shutdown
+    ip static 172.20.20.206/24
+    default-gateway 10.0.0.2
+interface 1/1/2
+    no shutdown
+    description TO-A1M
+    ip address 10.1.1.6/30
+    ip ospf 1 area 0.0.0.1
+interface 1/1/3
+    no shutdown
+    description TO-A2A
+    ip address 10.1.1.14/30
+    ip ospf 1 area 0.0.0.1
+interface 1/1/4
+    no shutdown
+    description TO-A3A                                         
+    ip address 10.1.1.22/30
+    ip ospf 1 area 0.0.0.1
+interface 1/1/5
+    no shutdown
+    description TO-A4M
+    ip address 10.1.1.30/30
+    ip ospf 1 area 0.0.0.1
+interface 1/1/6
+    no shutdown
+    description TO-C2A
+    ip address 10.0.0.17/30
+    ip ospf 1 area 0.0.0.0
+interface 1/1/7
+    no shutdown
+    description TO-C1J
+    ip address 10.0.0.13/30
+    ip ospf 1 area 0.0.0.0
+interface 1/1/8
+    no shutdown
+    description TO-D1C
+    ip address 10.0.0.2/30
+    ip ospf 1 area 0.0.0.0
+!
+!
+!
+!
+https-server vrf mgmt

@@ -139,7 +139,7 @@ Device names in the suffix are sorted alphabetically so the filename is canonica
 
 ## Adding a New Skill
 
-Each skill under `.claude/skills/<name>/` is self-contained. Adding a new protocol test category (e.g., BGP peering) requires no changes to `CLAUDE.md`, `server.py`, or `spec-format.md`.
+Each skill under `.claude/skills/<name>/` is self-contained. Adding a new protocol test category (e.g., BGP peering) requires no changes to `server.py` or `spec-format.md`.
 
 Steps:
 1. Create `.claude/skills/<name>/SKILL.md` — workflow, criteria table + assertion schemas, data extraction algorithm

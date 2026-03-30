@@ -1,0 +1,196 @@
+Building configuration...
+
+Current configuration : 4232 bytes
+!
+! Last configuration change at 05:07:27 UTC Wed Mar 18 2026
+!
+version 17.16
+service timestamps debug datetime msec
+service timestamps log datetime msec
+!
+hostname B1C
+!
+boot-start-marker
+boot-end-marker
+!
+!
+vrf definition VRF1
+ !
+ address-family ipv4
+ exit-address-family
+!
+vrf definition clab-mgmt
+ description clab-mgmt
+ !
+ address-family ipv4
+ exit-address-family
+ !
+ address-family ipv6
+ exit-address-family
+!
+no aaa new-model
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!         
+!
+!
+no ip domain lookup
+ip domain name lab
+ip cef
+login on-success log
+ipv6 unicast-routing
+ipv6 cef
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+crypto pki trustpoint TP-self-signed-5
+ enrollment selfsigned
+ subject-name cn=IOS-Self-Signed-Certificate-5
+ revocation-check none
+ rsakeypair TP-self-signed-5
+ hash sha512
+!
+!
+crypto pki certificate chain TP-self-signed-5
+ certificate self-signed 01
+  3082031E 30820206 A0030201 02020101 300D0609 2A864886 F70D0101 0D050030 
+  28312630 24060355 04030C1D 494F532D 53656C66 2D536967 6E65642D 43657274 
+  69666963 6174652D 35301E17 0D323630 33303631 31333831 355A170D 33363033 
+  30353131 33383135 5A302831 26302406 03550403 0C1D494F 532D5365 6C662D53 
+  69676E65 642D4365 72746966 69636174 652D3530 82012230 0D06092A 864886F7 
+  0D010101 05000382 010F0030 82010A02 82010100 CF5F37AB 3A6BB19A DDFA8CC4 
+  10C78592 76319BEF DCC95336 D094BC31 BE83BD33 ABAD7B4A 486DB03C B9C2FBDC 
+  C6B81C2C 48259D02 E389C6B0 70C6942B CBD69C4B 88B8A71F FDD4143B AB6C7E2F 
+  FB64D66C 4A59BE0F 0BD9A55E 481DBAEF 75ED8F7D BAECDE20 EEA13022 8E21CCC6 
+  956DCE0A 494D89C2 875E0FFF 004E78B5 68B8E1B6 0AC728E8 5A2250DB D40906F8 
+  94340DEB A8BD16CD F4208679 5D8746BC 0379D162 E560B97E 9EC44EB9 7ED62625 
+  C5AB1D58 914798F7 F856C2A0 F60DA56E 95485D93 F36F7BBD 1379A6B9 9FAE2764 
+  3BE40C2B 8F12450D EAC318A8 D914E472 22415E8D 633B4581 5119C172 A42A340E 
+  418CC223 AB151FC5 BE8D3672 4F08332D CD4E975B 02030100 01A35330 51301D06 
+  03551D0E 04160414 451509F7 A6A01839 C47AC517 A6F735BE 65D9EDD0 301F0603 
+  551D2304 18301680 14451509 F7A6A018 39C47AC5 17A6F735 BE65D9ED D0300F06 
+  03551D13 0101FF04 05300301 01FF300D 06092A86 4886F70D 01010D05 00038201 
+  0100002F 3BC8966E F927EAD7 D67B7235 874EDFA3 1DA905C9 7D1EA816 AA2F4AE3 
+  A83511C4 CDF84AFB 8F1A5C5F 50C55D50 434FEA59 578630A3 F77F568A 4E685BDF 
+  104F21CB 53F7E36C A126DDAF D7382F5F 36F8C443 14C7A4DD 9176B1E0 BF1E2876 
+  A05B0ED6 329E9906 CB36C6C6 3AA8538A B99AA92B D39A6719 1532ECC3 BA23B898 
+  57E85471 957D9E0C DF2C2A4B 48EF43B4 250C1290 28EC0A5B 7E8FA4BA 7D6110BF 
+  CE6C0C40 1E11C097 B9D6DC20 BB1B94E4 A28CA862 CD6D4406 C7EEE765 4A3A872A 
+  F2E1054C 092F28DC 24617520 3B525121 D50F74DA 3FE70736 EFFF6F2D 6BD46D48 
+  76932402 891548D1 0FDC6012 0BFE3BA7 C3F0BE3E 5965B436 0C00C267 0F538853 FFC3
+  	quit
+!
+!
+memory free low-watermark processor 53768
+!
+!
+spanning-tree mode rapid-pvst
+!
+!
+username admin privilege 15 secret 9 $9$yjzwG.bvc0utUE$U.zHAFLkZABzt/x2bQckN5I0XFHmAL/iZQFkgKbRjnU
+!
+!
+!
+!
+!
+! 
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!         
+!
+!
+!
+!
+interface Loopback0
+ vrf forwarding VRF1
+ ip address 172.16.110.1 255.255.255.255
+!
+interface Ethernet0/0
+ description clab-mgmt
+ vrf forwarding clab-mgmt
+ ip address 172.20.20.211 255.255.255.0
+ ipv6 address 3FFF:172:20:20::9/64
+!
+interface Ethernet0/1
+ description TO-D1C
+ vrf forwarding VRF1
+ ip address 10.10.10.1 255.255.255.252
+ no shutdown
+!
+interface Ethernet0/2
+ description TO-B2C
+ vrf forwarding VRF1
+ ip address 10.10.10.10 255.255.255.252
+ no shutdown
+!
+interface Ethernet0/3
+ no ip address
+ shutdown
+!
+!
+router eigrp 10
+ !
+ address-family ipv4 vrf VRF1 autonomous-system 10
+  network 10.10.10.0 0.0.0.3
+  network 10.10.10.8 0.0.0.3
+  network 172.16.110.1 0.0.0.0
+  passive-interface Loopback0
+ exit-address-family
+!
+ip forward-protocol nd
+ip forward-protocol udp
+!
+!
+ip http server
+ip http secure-server
+ip route vrf clab-mgmt 0.0.0.0 0.0.0.0 Ethernet0/0 172.20.20.1
+ip ssh bulk-mode 131072
+no logging btrace
+logging trap syslog-format rfc5424
+logging source-interface Ethernet0/0 vrf clab-mgmt
+logging host 172.20.20.1 vrf clab-mgmt
+ipv6 route vrf clab-mgmt ::/0 Ethernet0/0 3FFF:172:20:20::1
+!
+!
+!
+control-plane
+!
+!
+!
+line con 0
+ logging synchronous
+line aux 0
+line vty 0 4
+ login local
+ transport input ssh
+!
+ntp source Ethernet0/0
+ntp update-calendar
+ntp server vrf clab-mgmt 172.20.20.1
+!
+!
+!
+end

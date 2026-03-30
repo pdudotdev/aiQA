@@ -19,8 +19,11 @@ Describe your network intent once. aiQA generates RFC-compliant test cases from 
 - Haiku 4.5, Sonnet 4.6, Opus 4.6 (default, best reasoning)
 
 **Documentation:**
-- [**WORKFLOW.md**](metadata/workflow/WORKFLOW.md) — how test generation works end-to-end
-- [**OPTIMIZATIONS.md**](metadata/scalability/OPTIMIZATIONS.md) — RAG optimization roadmap
+- [**WORKFLOW.md**](metadata/workflow/WORKFLOW.md)
+- [**OPTIMIZATIONS.md**](metadata/scalability/OPTIMIZATIONS.md)
+
+**What's new in v1.0.0:**
+- [**CHANGELOG.md**](CHANGELOG.md)
 
 ## Tech Stack
 
@@ -37,9 +40,19 @@ Describe your network intent once. aiQA generates RFC-compliant test cases from 
 | Protocol | Skill | What's Generated |
 |----------|-------|-----------------|
 | **OSPF** | `/ospf-adj` | Adjacency test cases (neighbor state, timers, area, MTU, router ID) |
-| **OSPF** | `/ospf-lsdb` | LSDB verification tests *(planned)* |
-| **BGP** | `/bgp-peering` | BGP peering test cases *(planned)* |
-| **Routing** | `/route-policy` | Route policy validation tests *(planned)* |
+| **EIGRP** | `/eigrp-adj` | *(planned)* |
+| **BGP** | `/bgp-adj` | *(planned)* |
+
+## Test Network Topology
+
+**Network diagram:**
+
+![topology](metadata/topology/DBL-TOPOLOGY.png)
+
+**Lab environment:**
+- 16 devices defined in [**TOPOLOGY.yml**](TOPOLOGY.yml)
+- 5 x Cisco IOS, 3 x Cisco IOS-XE, 4 x Arista cEOS, 2 x MikroTik CHR, 1 x Juniper JunOS, 1 x Aruba AOS-CX
+- See [**lab_configs**](lab_configs/) for my test network's configuration
 
 ## Installation
 
@@ -149,13 +162,6 @@ aiQA/
 ├── requirements.txt
 └── README.md
 ```
-
-## Planned Upgrades
-
-- OSPF LSDB verification skill
-- BGP peering test generation skill
-- Route policy validation skill
-- Interface health test generation skill
 
 ## Disclaimer
 

@@ -1,0 +1,121 @@
+! Startup-config last modified at Sat Mar 21 16:45:51 2026 by admin
+! device: C2A (cEOSLab, EOS-4.35.0F-44178984.4350F (engineering build))
+!
+no aaa root
+!
+username admin privilege 15 role network-admin secret sha512 $6$WYIFji2gEpzUYRcO$.HuCO/Do2vQ1JnfpBEFWA5BSFXR1/JD74PVx5HheEI.7fR6ptlnfCD0oJNGrNdPMl9mC.dS64fgNGKgKsQXmE/
+!
+management api http-commands
+   no shutdown
+!
+no service interface inactive port-id allocation disabled
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+logging host 172.20.20.1
+logging format rfc5424
+!
+hostname C2A
+!
+spanning-tree mode mstp
+!
+system l1
+   unsupported speed action error
+   unsupported error-correction action error
+!
+vrf instance VRF1
+!
+management api gnmi
+   transport grpc default
+      ssl profile gnmi
+!
+management api netconf
+   transport ssh default
+!
+management api restconf
+   transport https test
+      ssl profile restconf
+!
+management security
+   ssl profile gnmi
+      ccertificate gnmi.crt key gnmi.key
+   !
+   ssl profile restconf
+      certificate restconf.crt key restconf.key
+!
+interface Ethernet1
+   description TO-DC1A
+   no switchport
+   vrf VRF1
+   ip address 10.0.0.42/30
+!
+interface Ethernet2
+   description TO-D2B
+   no switchport
+   vrf VRF1
+   ip address 10.0.0.18/30
+!
+interface Ethernet3
+   description TO-D1C
+   no switchport
+   vrf VRF1
+   ip address 10.0.0.10/30
+!
+interface Ethernet4
+   description TO-C1J
+   no switchport
+   vrf VRF1
+   ip address 10.0.0.22/30
+!
+interface Ethernet5
+   description TO-E1C
+   no switchport
+   vrf VRF1
+   ip address 10.0.0.33/30
+!
+interface Ethernet6
+   description TO-E2C
+   no switchport
+   vrf VRF1
+   ip address 10.0.0.37/30
+!
+interface Management0
+   ip address 172.20.20.208/24
+   ipv6 address 3fff:172:20:20::7/64
+!
+ip access-list OPEN
+   10 permit ip any any
+!
+ip routing
+ip routing vrf VRF1
+!
+system control-plane
+   ip access-group OPEN in
+!
+ip route 0.0.0.0/0 172.20.20.1
+!
+ipv6 route ::/0 3fff:172:20:20::1
+!
+ntp server 172.20.20.1 prefer
+!
+router multicast
+   ipv4
+      software-forwarding kernel
+   !
+   ipv6
+      software-forwarding kernel
+!
+router ospf 1 vrf VRF1
+   router-id 22.22.22.22
+   network 10.0.0.0/24 area 0.0.0.0
+   max-lsa 12000
+!
+management ssh
+   idle-timeout 15
+!
+management telnet
+   no shutdown
+!
+end

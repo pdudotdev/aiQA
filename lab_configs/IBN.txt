@@ -1,0 +1,192 @@
+Building configuration...
+
+Current configuration : 4093 bytes
+!
+! Last configuration change at 05:07:25 UTC Wed Mar 18 2026
+!
+version 17.16
+service timestamps debug datetime msec
+service timestamps log datetime msec
+!
+hostname IBN
+!
+boot-start-marker
+boot-end-marker
+!
+!
+vrf definition clab-mgmt
+ description clab-mgmt
+ !
+ address-family ipv4
+ exit-address-family
+ !
+ address-family ipv6
+ exit-address-family
+!
+no aaa new-model
+!
+!
+!
+!
+ip vrf VRF1
+ rd 5050:1
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!         
+no ip domain lookup
+ip domain name lab
+ip cef
+login on-success log
+ipv6 unicast-routing
+ipv6 cef
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+crypto pki trustpoint TP-self-signed-15
+ enrollment selfsigned
+ subject-name cn=IOS-Self-Signed-Certificate-15
+ revocation-check none
+ rsakeypair TP-self-signed-15
+ hash sha512
+!
+!
+crypto pki certificate chain TP-self-signed-15
+ certificate self-signed 01
+  30820320 30820208 A0030201 02020101 300D0609 2A864886 F70D0101 0D050030 
+  29312730 25060355 04030C1E 494F532D 53656C66 2D536967 6E65642D 43657274 
+  69666963 6174652D 3135301E 170D3236 30333036 31333436 30385A17 0D333630 
+  33303531 33343630 385A3029 31273025 06035504 030C1E49 4F532D53 656C662D 
+  5369676E 65642D43 65727469 66696361 74652D31 35308201 22300D06 092A8648 
+  86F70D01 01010500 0382010F 00308201 0A028201 01009A71 E3504AD3 54E63E8A 
+  22CE17FF 0B1EE73A 3C7842FF 31398C84 27B3046A C3D92385 D6A93781 4687E4DF 
+  3DB30BE0 C758A05A C2D4678C 822C18AC AAAD245D C4809B39 38270C86 BEFB830D 
+  3F6D516A 608FE644 B97A396B 3A18CC26 36A27532 05D6ACB5 C80EBCA9 1BF8DC0B 
+  4C715630 9B763420 104D5A70 2A42DFA0 2DB2926F EA579BA3 8075A65A F2B4FB00 
+  8B93B1DE F69523CB ECECDB05 349DFC89 9FAE6F88 E98111F3 16960E5E A8FF63EB 
+  78B869BB A827CD49 AAB52CEC 0F5B93C5 9C7AB6C5 72385CE4 298A3873 FDFE89CB 
+  5696E44B 15C7B31F B73D77EA FCEFE9ED 0812D796 9CF07D94 30FC012F 6BA00EFE 
+  4889F82A A14E29B1 EC38804B 35884AAA BFCA0789 96B90203 010001A3 53305130 
+  1D060355 1D0E0416 04146449 563CA09F 71591026 DDB01561 676AEE03 56AE301F 
+  0603551D 23041830 16801464 49563CA0 9F715910 26DDB015 61676AEE 0356AE30 
+  0F060355 1D130101 FF040530 030101FF 300D0609 2A864886 F70D0101 0D050003 
+  82010100 81887835 020B6233 0AED39E8 9A07ED66 56D541A8 EBAE2FBE BF99CDED 
+  76AFA437 B1B70DED 5D53B158 6E2727B4 2CDBF28D EFA64801 094C6469 C3AC0BCE 
+  B34A3116 DA069094 035FFCA4 276CCF37 B390DB6C 3A5387A1 8D144D2E D12DBC1D 
+  793A59B8 205C195A B70E2516 6271E2CA 7ECFAED1 7ACD0965 4D5F8663 02DFE3F6 
+  8900518A 7F347AA1 712EFE6A A915B8B7 DD04DE47 08D345DC AF8C5C35 043BCA03 
+  BD8F1A94 3BEF58A5 9356A60A 19AF4716 742EA74C 23D707CC DC55D481 7B4F43E7 
+  632CDC99 F0D38A49 C43B1731 60D79E38 DD77EE49 937309CE 759AAACD 40F87801 
+  A2EF3638 681AFA62 1A632397 D5412604 9A0833EA AA635751 4F33545A 6507EB8F C30ED48B
+  	quit
+!
+!
+memory free low-watermark processor 53768
+!
+!
+spanning-tree mode rapid-pvst
+!
+!
+username admin privilege 15 secret 9 $9$boDMvKB5OtEi.E$Y.iwwkHtO9nrMaWEcSkJgRq5nk7Q.0jHyTAMA7dYPyE
+!
+!
+!
+!
+!
+! 
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!         
+!
+!
+interface Ethernet0/0
+ description clab-mgmt
+ vrf forwarding clab-mgmt
+ ip address 172.20.20.230 255.255.255.0
+ ipv6 address 3FFF:172:20:20::4/64
+!
+interface Ethernet0/1
+ description TO-E2C
+ ip vrf forwarding VRF1
+ ip address 200.50.50.6 255.255.255.252
+!
+interface Ethernet0/2
+ description TO-E1C
+ ip vrf forwarding VRF1
+ ip address 200.50.50.2 255.255.255.252
+!
+interface Ethernet0/3
+ description TO-X1C
+ ip vrf forwarding VRF1
+ ip address 200.50.8.2 255.255.255.252
+!
+router bgp 5050
+ bgp router-id 50.50.50.50
+ bgp log-neighbor-changes
+ !
+ address-family ipv4 vrf VRF1
+  network 200.50.8.0 mask 255.255.255.252
+  network 200.50.50.0 mask 255.255.255.252
+  network 200.50.50.4 mask 255.255.255.252
+  neighbor 200.50.8.1 remote-as 2020
+  neighbor 200.50.8.1 activate
+  neighbor 200.50.8.1 default-originate
+  neighbor 200.50.50.1 remote-as 1010
+  neighbor 200.50.50.1 activate
+  neighbor 200.50.50.1 default-originate
+  neighbor 200.50.50.5 remote-as 1010
+  neighbor 200.50.50.5 activate
+  neighbor 200.50.50.5 default-originate
+ exit-address-family
+!
+ip forward-protocol nd
+ip forward-protocol udp
+!
+!         
+ip http server
+ip http secure-server
+ip route vrf clab-mgmt 0.0.0.0 0.0.0.0 Ethernet0/0 172.20.20.1
+ip ssh bulk-mode 131072
+no logging btrace
+ipv6 route vrf clab-mgmt ::/0 Ethernet0/0 3FFF:172:20:20::1
+!
+!
+!
+control-plane
+!
+!
+!
+line con 0
+ logging synchronous
+line aux 0
+line vty 0 4
+ login local
+ transport input ssh
+!
+!
+!
+!
+end

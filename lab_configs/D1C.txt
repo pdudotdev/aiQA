@@ -1,0 +1,254 @@
+Building configuration...
+
+Current configuration : 5256 bytes
+!
+! Last configuration change at 05:07:30 UTC Wed Mar 18 2026
+!
+version 17.16
+service timestamps debug datetime msec
+service timestamps log datetime msec
+!
+hostname D1C
+!
+boot-start-marker
+boot-end-marker
+!
+!
+vrf definition VRF1
+ !
+ address-family ipv4
+ exit-address-family
+!
+vrf definition clab-mgmt
+ description clab-mgmt
+ !
+ address-family ipv4
+ exit-address-family
+ !
+ address-family ipv6
+ exit-address-family
+!
+no aaa new-model
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!         
+!
+!
+no ip domain lookup
+ip domain name lab
+ip cef
+login on-success log
+ipv6 unicast-routing
+ipv6 cef
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+crypto pki trustpoint TP-self-signed-9
+ enrollment selfsigned
+ subject-name cn=IOS-Self-Signed-Certificate-9
+ revocation-check none
+ rsakeypair TP-self-signed-9
+ hash sha512
+!
+!
+crypto pki certificate chain TP-self-signed-9
+ certificate self-signed 01
+  3082031E 30820206 A0030201 02020101 300D0609 2A864886 F70D0101 0D050030 
+  28312630 24060355 04030C1D 494F532D 53656C66 2D536967 6E65642D 43657274 
+  69666963 6174652D 39301E17 0D323630 33303630 34343132 305A170D 33363033 
+  30353034 34313230 5A302831 26302406 03550403 0C1D494F 532D5365 6C662D53 
+  69676E65 642D4365 72746966 69636174 652D3930 82012230 0D06092A 864886F7 
+  0D010101 05000382 010F0030 82010A02 82010100 F2207BF0 19D079A2 362D7BCD 
+  1EAD55B9 263123C3 DF7270DD C29EDBD1 5826EC00 8FB15BCF 6D7BBD6D 6C28FB0B 
+  D03A7181 D2B49E20 1EA367D9 A02FB29E 7FED7959 1C3ECCB9 7ED62992 ACC58A02 
+  3227996E C41FCEB1 886A7AC7 33358951 E4EB5942 B3AA9759 E20A0D99 A3E820BB 
+  FF57B75B 97A74C89 45FED71B E5759204 8C837160 B957A795 4DE65B83 6F7BF67F 
+  AD5DF491 17DB0F7D D92B3070 CD1C94BA 13A93C58 3BD39B64 EA42C348 9163875A 
+  EABA38E2 F74FDAB6 F313A0A3 97476AA3 7A39EA10 B810472C BDA56664 24696D37 
+  EBB8C205 195A8491 83BAAAF1 B41D3A31 9D22050D D6EEF4C8 329D451F 2EACA3CA 
+  80532A2C 06E75A68 58139E12 26D5877E CE28FD2F 02030100 01A35330 51301D06 
+  03551D0E 04160414 017A7492 35D31C05 1317AB00 C6BCB445 696CDB3F 301F0603 
+  551D2304 18301680 14017A74 9235D31C 051317AB 00C6BCB4 45696CDB 3F300F06 
+  03551D13 0101FF04 05300301 01FF300D 06092A86 4886F70D 01010D05 00038201 
+  0100CD23 A553CD44 F7FA26FE FE84332C AB81D610 92E23FE3 A2B14E69 A9A32F1C 
+  4AB39E2A 9B230AFD F5E26C36 864EEC91 568A96E8 B33A1DD4 775BCB14 02BBE323 
+  F2289901 0D3EBBCD 75D0D2BB 075AE39E FAE16AF8 D7524D30 BFB385F9 D616C1E3 
+  F8575439 90755513 9729C2B2 52F05968 760A0261 1A32C294 CBF2E27F 37E33923 
+  271C9327 A42C8993 7A0CB158 43E06ACA 64E86DDA B9F1D5CF 1D5A098A 8019CA03 
+  5D8F7416 91F95DA4 92C253D9 0371332C F4C3BCD3 0476D59B 5CF307ED 2F31BF3D 
+  D26FAF18 6DEDB501 3F75902B 138AC75E A2B488F1 0906650D 23832764 046D60CC 
+  40E265B2 8047070A 429F46B3 2D6BC6E7 3728357B 6B96B0A6 8053195B 8C0D6F51 C614
+  	quit
+!
+!
+memory free low-watermark processor 53768
+!
+!
+spanning-tree mode rapid-pvst
+!
+!
+username admin privilege 15 secret 9 $9$L5dBrPl0EnHSPE$MnDZRHr/0Yob/08V6aUXPkzkKU49nwzgdGU/Uclvv7M
+!
+!
+!
+!
+!
+! 
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!         
+!
+!
+!
+!
+interface Ethernet0/0
+ description clab-mgmt
+ vrf forwarding clab-mgmt
+ ip address 172.20.20.205 255.255.255.0
+ ipv6 address 3FFF:172:20:20::A/64
+!
+interface Ethernet0/1
+ description TO-A1M
+ vrf forwarding VRF1
+ ip address 10.1.1.2 255.255.255.252
+ no shutdown
+!
+interface Ethernet0/2
+ description TO-A2A
+ vrf forwarding VRF1
+ ip address 10.1.1.10 255.255.255.252
+ no shutdown
+!
+interface Ethernet0/3
+ description TO-A3A
+ vrf forwarding VRF1
+ ip address 10.1.1.18 255.255.255.252
+ no shutdown
+!
+interface Ethernet1/0
+ description TO-A4M
+ vrf forwarding VRF1
+ ip address 10.1.1.26 255.255.255.252
+ no shutdown
+!
+interface Ethernet1/1
+ description TO-D2B
+ vrf forwarding VRF1
+ ip address 10.0.0.1 255.255.255.252
+ no shutdown
+!
+interface Ethernet1/2
+ description TO-C2A
+ vrf forwarding VRF1
+ ip address 10.0.0.9 255.255.255.252
+ no shutdown
+!         
+interface Ethernet1/3
+ description TO-C1J
+ vrf forwarding VRF1
+ ip address 10.0.0.5 255.255.255.252
+ no shutdown
+!
+interface Ethernet2/0
+ description TO-B1C
+ vrf forwarding VRF1
+ ip address 10.10.10.2 255.255.255.252
+ no shutdown
+!
+interface Ethernet2/1
+ description TO-B2C
+ vrf forwarding VRF1
+ ip address 10.10.10.6 255.255.255.252
+ no shutdown
+!
+interface Ethernet2/2
+ no ip address
+ shutdown
+!
+interface Ethernet2/3
+ no ip address
+ shutdown
+!
+!
+router eigrp 10
+ !
+ address-family ipv4 vrf VRF1 autonomous-system 10
+  redistribute ospf 1 route-map OSPF-TO-EIGRP
+  network 10.10.10.0 0.0.0.3
+  network 10.10.10.4 0.0.0.3
+  eigrp router-id 11.11.11.11
+ exit-address-family
+!
+router ospf 1 vrf VRF1
+ router-id 11.11.11.11
+ area 1 stub
+ area 1 range 10.1.1.0 255.255.255.0
+ redistribute eigrp 10 metric-type 1
+ network 10.0.0.0 0.0.0.3 area 0
+ network 10.0.0.4 0.0.0.3 area 0
+ network 10.0.0.8 0.0.0.3 area 0
+ network 10.1.1.0 0.0.0.3 area 1
+ network 10.1.1.8 0.0.0.3 area 1
+ network 10.1.1.16 0.0.0.3 area 1
+ network 10.1.1.24 0.0.0.3 area 1
+!
+ip forward-protocol nd
+ip forward-protocol udp
+!
+!
+ip http server
+ip http secure-server
+ip route vrf clab-mgmt 0.0.0.0 0.0.0.0 Ethernet0/0 172.20.20.1
+ip ssh bulk-mode 131072
+no logging btrace
+logging trap syslog-format rfc5424
+logging source-interface Ethernet0/0 vrf clab-mgmt
+logging host 172.20.20.1 vrf clab-mgmt
+ipv6 route vrf clab-mgmt ::/0 Ethernet0/0 3FFF:172:20:20::1
+route-map OSPF-TO-EIGRP permit 10 
+ set metric 1000000 1 255 1 1500
+!
+!
+!
+!
+control-plane
+!
+!
+!
+line con 0
+ logging synchronous
+line aux 0
+line vty 0 4
+ login local
+ transport input ssh
+!
+ntp source Ethernet0/0
+ntp update-calendar
+ntp server vrf clab-mgmt 172.20.20.1
+!
+!
+!         
+end
