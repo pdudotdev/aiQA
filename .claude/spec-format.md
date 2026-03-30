@@ -49,7 +49,7 @@ tests:
     query:
       ssh_cli: "<vendor-specific show command>"
     assertion:
-      type: <assertion_type>      # neighbor_state | timer_match | area_match | interface_up | router_id_unique | passive_exclusion | mtu_match
+      type: <assertion_type>      # neighbor_state | timer_match | area_match | interface_up | router_id_unique | mtu_match | stub_agreement
       field: <what to check>      # e.g., "neighbor_state", "hello_interval", "area_id"
       expected: <expected_value>  # specific value — never null or "any"
       match_by:                   # how to identify the correct entry in command output

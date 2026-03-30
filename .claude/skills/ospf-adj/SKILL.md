@@ -13,10 +13,13 @@ You are a network test engineer. Generate a complete, production-grade OSPF adja
 `$ARGUMENTS` accepts a flexible number of device names (space-separated).
 
 - `/ospf-adj` — generate tests for all OSPF adjacency pairs in the topology
-- `/ospf-adj D1C` — only pairs where D1C is an endpoint
-- `/ospf-adj D1C C1J C2A` — only pairs where any of those three is an endpoint
+- `/ospf-adj D1C` — all pairs where D1C is an endpoint
+- `/ospf-adj A1M D2B` — only the pair between A1M and D2B
+- `/ospf-adj D1C C1J C2A` — only pairs where both endpoints are in the list (D1C↔C1J, D1C↔C2A, C1J↔C2A)
 
-When filtering: include a pair if **any** device in `$ARGUMENTS` is one of its endpoints.
+When filtering:
+- **One device**: include all pairs where that device is an endpoint.
+- **Two or more devices**: include only pairs where **both** endpoints are in the device list.
 
 **Output filename suffix:** When `$ARGUMENTS` is set, append the sorted device names to output filenames (e.g., `ospf_adjacency_C1J_D1C.yaml`). Full-topology runs use no suffix (e.g., `ospf_adjacency.yaml`). See Steps 4–6 for exact paths.
 
@@ -58,13 +61,13 @@ Do not continue until it is loaded.
    - If the router has `area_types`, look up the resolved area_id in that dict.
    - If neither field covers the resolved area (e.g., backbone Area 0 on an ABR), default to `normal`.
 
-6. **Passive exclusion check** — ADJ-09 applies only to transit links where the connecting interface is listed in `igp.ospf.passive_interfaces`. Loopbacks are always passive but are never transit links — ignore them for ADJ-09.
+6. If `$ARGUMENTS` is set:
+   - **One device**: keep pairs where that device is an endpoint.
+   - **Two or more devices**: keep only pairs where both devices in the pair are in the argument list.
 
-7. If `$ARGUMENTS` is set, filter the pair list to those where any listed device is an endpoint.
+7. Call `list_devices` to cross-reference `cli_style` and `host` for each device in scope.
 
-8. Call `list_devices` to cross-reference `cli_style` and `host` for each device in scope.
-
-9. Present the pair table to the user before proceeding:
+8. Present the pair table to the user before proceeding:
 
 | Pair | Subnet | Area | Type | Device A cli_style | Device B cli_style |
 |------|--------|------|------|--------------------|--------------------|
@@ -103,12 +106,11 @@ Apply the criteria below to each pair (or scoped subset). Use the assertion sche
 | ADJ-01 | Interface Up | all pairs | yes — one test per device per pair | `interface_up` | `line_protocol` | `up` | `interface: <local_iface>` |
 | ADJ-02 | Neighbor Presence | all pairs | yes — one test per direction (A→B and B→A) | `neighbor_presence` | `neighbor_rid` | `<peer router_id>` | `router_id: <peer_rid>` |
 | ADJ-03 | State FULL | all pairs | yes — one test per direction | `neighbor_state` | `state` | `FULL` | `router_id: <peer_rid>` |
-| ADJ-04 | Area ID Match | all pairs | no — one test per pair | `area_match` | `area_id` | `<area as dotted quad, e.g. 0.0.0.1>` | `interface: <local_iface>` |
+| ADJ-04 | Area ID Match | all pairs | yes — one test per device per pair | `area_match` | `area_id` | `<area as dotted quad, e.g. 0.0.0.1>` | `interface: <local_iface>` |
 | ADJ-05 | Timer Match | all pairs | no — two entries per pair (hello + dead) | `timer_match` | `hello_interval` / `dead_interval` | `10` / `40` | `interface: <local_iface>` |
-| ADJ-06 | Stub Agreement | non-backbone pairs only (area_type = stub) | no — one test per pair | `stub_agreement` | `area_type` | `stub` | `interface: <local_iface>` |
+| ADJ-06 | Stub Agreement | non-backbone pairs only (area_type = stub) | yes — one test per device per pair | `stub_agreement` | `area_type` | `stub` | `interface: <local_iface>` |
 | ADJ-07 | MTU Match | all pairs | yes — one test per device per pair | `mtu_match` | `mtu` | `1500` | `interface: <local_iface>` |
 | ADJ-08 | Router ID Unique | per OSPF router (not per pair) | n/a — one test per unique device in scope | `router_id_unique` | `router_id` | `<router_id from intent.igp.ospf.router_id>` | *(process-level, no match_by)* |
-| ADJ-09 | Passive Exclusion | passive transit links only | no | `passive_exclusion` | `passive` | `false` | `interface: <local_iface>` |
 
 **Quality controls — check before writing each test entry:**
 
