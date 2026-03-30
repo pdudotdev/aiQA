@@ -18,6 +18,9 @@ Describe your network intent once. aiQA generates RFC-compliant test cases from 
 **Supported models:**
 - Haiku 4.5, Sonnet 4.6, Opus 4.6 (default, best reasoning)
 
+**Output samples:**
+- See [**output_samples**](output_samples/)
+
 **Documentation:**
 - [**WORKFLOW.md**](metadata/workflow/WORKFLOW.md)
 - [**OPTIMIZATIONS.md**](metadata/scalability/OPTIMIZATIONS.md)
