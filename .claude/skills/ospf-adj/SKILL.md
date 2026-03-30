@@ -61,13 +61,16 @@ Do not continue until it is loaded.
    - If the router has `area_types`, look up the resolved area_id in that dict.
    - If neither field covers the resolved area (e.g., backbone Area 0 on an ABR), default to `normal`.
 
-6. If `$ARGUMENTS` is set:
-   - **One device**: keep pairs where that device is an endpoint.
-   - **Two or more devices**: keep only pairs where both devices in the pair are in the argument list.
+6. **Apply scope filter — do this before presenting anything to the user:**
+   - If `$ARGUMENTS` is **not set**: keep all pairs.
+   - If `$ARGUMENTS` has **one device**: keep pairs where that device is an endpoint.
+   - If `$ARGUMENTS` has **two or more devices**: keep only pairs where **both** endpoints are in the argument list.
+
+   After filtering, discard all other pairs. Only the filtered pairs are in scope for the rest of the workflow.
 
 7. Call `list_devices` to cross-reference `cli_style` and `host` for each device in scope.
 
-8. Present the pair table to the user before proceeding:
+8. Present **only the filtered pairs** to the user — do not include pairs that were filtered out:
 
 | Pair | Subnet | Area | Type | Device A cli_style | Device B cli_style |
 |------|--------|------|------|--------------------|--------------------|
@@ -81,7 +84,18 @@ Wait for user confirmation before proceeding to Step 3.
 
 For each unique `cli_style` present in the extracted pairs, call `search_knowledge_base` with:
 - `protocol: "ospf"`
-- `vendor: <vendor>` (e.g., `"cisco_ios"`, `"arista_eos"`)
+- `vendor: <vendor>` — use the KB vendor name from the mapping below, not the short cli_style name
+
+**cli_style → KB vendor mapping:**
+
+| cli_style | KB vendor |
+|-----------|-----------|
+| ios | cisco_ios |
+| eos | arista_eos |
+| junos | juniper_junos |
+| aos | aruba_aoscx |
+| routeros | mikrotik_ros |
+| vyos | vyos |
 - `query: "ospf neighbor show command interface timer area stub mtu"`
 
 For any RFC clarification needed, call `search_knowledge_base` with:
@@ -107,7 +121,7 @@ Apply the criteria below to each pair (or scoped subset). Use the assertion sche
 | ADJ-02 | Neighbor Presence | all pairs | yes — one test per direction (A→B and B→A) | `neighbor_presence` | `neighbor_rid` | `<peer router_id>` | `router_id: <peer_rid>` |
 | ADJ-03 | State FULL | all pairs | yes — one test per direction | `neighbor_state` | `state` | `FULL` | `router_id: <peer_rid>` |
 | ADJ-04 | Area ID Match | all pairs | yes — one test per device per pair | `area_match` | `area_id` | `<area as dotted quad, e.g. 0.0.0.1>` | `interface: <local_iface>` |
-| ADJ-05 | Timer Match | all pairs | no — two entries per pair (hello + dead) | `timer_match` | `hello_interval` / `dead_interval` | `10` / `40` | `interface: <local_iface>` |
+| ADJ-05 | Timer Match | all pairs | yes — two tests per device per pair (hello + dead) | `timer_match` | `hello_interval` / `dead_interval` | `10` / `40` | `interface: <local_iface>` |
 | ADJ-06 | Stub Agreement | non-backbone pairs only (area_type = stub) | yes — one test per device per pair | `stub_agreement` | `area_type` | `stub` | `interface: <local_iface>` |
 | ADJ-07 | MTU Match | all pairs | yes — one test per device per pair | `mtu_match` | `mtu` | `1500` | `interface: <local_iface>` |
 | ADJ-08 | Router ID Unique | per OSPF router (not per pair) | n/a — one test per unique device in scope | `router_id_unique` | `router_id` | `<router_id from intent.igp.ospf.router_id>` | *(process-level, no match_by)* |
@@ -119,7 +133,7 @@ Apply the criteria below to each pair (or scoped subset). Use the assertion sche
 - **QC-3:** `query.ssh_cli` uses the correct vendor command from Step 3 RAG results for this device's `cli_style`.
 - **QC-4:** `assertion.expected` is a specific value — never `null`, `any`, or `not empty`.
 - **QC-5:** `assertion.match_by` uses `router_id` from intent for neighbor lookups, not the peer's device name.
-- **QC-6:** Test IDs follow `ospf_adj_<ADJ-XX>_<deviceA>_<deviceB>` with deviceA < deviceB alphabetically.
+- **QC-6:** Test IDs follow `ospf_adj_<ADJ-XX>_<deviceA>_<deviceB>` with deviceA < deviceB alphabetically. For per-device criteria (ADJ-08), use `ospf_adj_<ADJ-XX>_<device>`.
 
 **Output path:**
 - Full topology: `output/spec/ospf_adjacency.yaml`

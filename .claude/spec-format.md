@@ -49,10 +49,10 @@ tests:
     query:
       ssh_cli: "<vendor-specific show command>"
     assertion:
-      type: <assertion_type>      # neighbor_state | timer_match | area_match | interface_up | router_id_unique | mtu_match | stub_agreement
+      type: <assertion_type>      # interface_up | neighbor_presence | neighbor_state | timer_match | area_match | stub_agreement | mtu_match | router_id_unique
       field: <what to check>      # e.g., "neighbor_state", "hello_interval", "area_id"
       expected: <expected_value>  # specific value — never null or "any"
-      match_by:                   # how to identify the correct entry in command output
+      match_by:                   # optional — omit for process-level checks (e.g., router_id_unique)
         router_id: <rid>          # for neighbor table lookups
         interface: <iface>        # for interface-specific checks
         # ...one or both of the above
@@ -62,11 +62,12 @@ tests:
 
 Test IDs must be: `<skill>_<criterion>_<deviceA>_<deviceB>` where deviceA < deviceB alphabetically.
 
+For per-device criteria (e.g., ADJ-08 Router ID Unique): `<skill>_<criterion>_<device>`.
+
 Examples:
 - `ospf_adj_ADJ-02_A1M_D1C`
 - `ospf_adj_ADJ-03_C1J_D1C`
-
-For single-device skills: `<skill>_<criterion>_<device>`.
+- `ospf_adj_ADJ-08_D1C`
 
 ---
 

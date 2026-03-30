@@ -35,7 +35,7 @@ The YAML spec is always generated first. Pytest and Ansible renderings are mecha
 
 - **RFC grounding**: Every test must cite a specific RFC section. If you cannot cite one, search the KB before writing the test.
 - **No ghost assertions**: Every assertion must check a specific expected value. `assert output is not None` or `assert len(result) > 0` are not acceptable.
-- **Bidirectional**: For adjacency/peering tests, generate tests for both sides of every link.
+- **Bidirectional**: For adjacency/peering tests, generate tests for both sides of every link unless the criterion is explicitly per-device (not per-pair).
 - **Vendor-specific**: Use the correct CLI command for each device's platform. Search the KB if unsure.
 - **No configuration changes**: All generated tests are read-only verification. Never generate tests that modify device state.
 

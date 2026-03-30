@@ -51,7 +51,7 @@ The agent is a Claude Code session with the aiQA MCP server active. The user inv
     → filter OSPF routers (have igp.ospf)
     → enumerate P2P pairs from direct_links
     → determine area + area_type per pair (handle ABR dual-area)
-    → filter to pairs where D1C or C1J is an endpoint
+    → scope filter: keep only pairs where both endpoints are in {D1C, C1J}
     → present pair table → user confirms
 
   Step 3 — Research
@@ -61,7 +61,7 @@ The agent is a Claude Code session with the aiQA MCP server active. The user inv
     → retrieve RFC section references for each criterion
 
   Step 4 — Generate YAML Spec
-    → apply 9 criteria to each pair (ADJ-01..ADJ-09)
+    → apply 8 criteria (ADJ-01..ADJ-08)
     → populate query.ssh_cli from RAG results (vendor-specific)
     → populate assertion schema from criteria table (type, field, expected, match_by)
     → write output/spec/ospf_adjacency_C1J_D1C.yaml
@@ -130,8 +130,8 @@ Every test entry in the spec contains:
 | Invocation | What it generates | Output filename suffix |
 |------------|-------------------|----------------------|
 | `/ospf-adj` | All OSPF adjacency pairs in topology | *(none)* |
-| `/ospf-adj D1C` | Only pairs where D1C is an endpoint | `_D1C` |
-| `/ospf-adj D1C C1J` | Pairs where D1C **or** C1J is an endpoint | `_C1J_D1C` |
+| `/ospf-adj D1C` | All pairs where D1C is an endpoint | `_D1C` |
+| `/ospf-adj D1C C1J` | Only pairs where **both** endpoints are in the list | `_C1J_D1C` |
 
 Device names in the suffix are sorted alphabetically so the filename is canonical regardless of argument order.
 
