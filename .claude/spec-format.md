@@ -77,8 +77,8 @@ Generate the following files under `output/pytest/`:
 
 ### `conftest.py`
 - Device connection fixtures using `scrapli` (SSH)
-- Parametrize by device name; look up host from `data/INTENT.json`
-- Connection details: use `host` field from intent; `cli_style` maps to scrapli platform
+- Look up device data from `data/INTENT.json` under the `routers` key — the JSON structure is `{"autonomous_systems": {...}, "routers": {"A1M": {...}, "D2B": {...}, ...}}`. Device fields (`host`, `cli_style`, etc.) are directly on each router object, not nested under an `intent` sub-key.
+- `cli_style` maps to scrapli platform (see table below)
 - Fixture scope: `session` for connection reuse
 
 ### `test_<skill>.py`

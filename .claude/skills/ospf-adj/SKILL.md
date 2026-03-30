@@ -76,7 +76,7 @@ Do not continue until it is loaded.
 |------|--------|------|------|--------------------|--------------------|
 | ... | | | | | |
 
-Wait for user confirmation before proceeding to Step 3.
+**Do not pause or ask for confirmation here.** Proceed with KB research, spec generation, and rendering without waiting. Only stop and ask the user if something is wrong (0 pairs found, area type undetermined, device not in inventory).
 
 ---
 
