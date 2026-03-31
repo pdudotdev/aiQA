@@ -10,7 +10,7 @@ This is not a latency problem. It is a **relevance quality** problem: imprecise 
 
 | Component | Value |
 |-----------|-------|
-| Chunks | ~170 |
+| Chunks | ~269 |
 | Collection | `network_kb` |
 | Embedding model | `all-MiniLM-L6-v2` (384 dimensions) |
 | Chunk size | 800 characters, 100 overlap |

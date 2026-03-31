@@ -18,6 +18,15 @@
 - Requests for read-only state checks (e.g., "show me OSPF neighbor states") → agent asks user to be more specific about what condition to test
 - Test scenarios updated: Q1–Q6, legacy tier-specific scenarios removed
 
+### Knowledge Base — BGP and EIGRP Protocol Coverage
+
+- Added `rfc4271_bgp.md`: BGP-4 core — FSM, message types, path attributes, decision process, NOTIFICATION errors, timers
+- Added `rfc4760_mpbgp.md`: MP-BGP extensions — MP_REACH_NLRI, MP_UNREACH_NLRI, AFI/SAFI, capability advertisement
+- Added `rfc7868_eigrp.md`: EIGRP — DUAL algorithm, packet types, RTP, classic/wide metrics, stub routing, SIA handling
+- `_RFC_PROTOCOL_MAP` updated: `rfc4271` → bgp, `rfc4760` → bgp, `rfc7868` → eigrp
+- KB document count: 8 → 11 (5 RFCs + 6 vendor guides)
+- KB chunk count: ~199 → ~269 after re-ingestion
+
 ---
 
 ## v1.1 — 2026-03-31

@@ -18,7 +18,9 @@ CHUNK_OVERLAP = 100
 _RFC_PROTOCOL_MAP = {
     "rfc2328": "ospf",
     "rfc3101": "ospf",
-    # Future: "rfc4271": "bgp", "rfc7868": "eigrp"
+    "rfc7868": "eigrp",
+    "rfc4271": "bgp",
+    "rfc4760": "bgp",
 }
 
 
@@ -48,7 +50,11 @@ def ingest():
 
     documents = []
     for fp in md_files:
-        text = fp.read_text(encoding="utf-8")
+        try:
+            text = fp.read_text(encoding="utf-8")
+        except Exception as exc:
+            print(f"WARNING: skipping {fp.name}: {exc}")
+            continue
         metadata = extract_metadata(fp)
         documents.append(Document(page_content=text, metadata=metadata))
     print(f"Loaded {len(documents)} document(s) from {DOCS_DIR}")

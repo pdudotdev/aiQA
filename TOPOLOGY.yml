@@ -1,0 +1,102 @@
+name: yana
+
+topology:
+  defaults:
+    env:
+      CLAB_MGMT_PASSTHROUGH: "true"
+  nodes:
+    A1M:
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.20.8
+      mgmt-ipv4: 172.20.20.201
+    A2A:
+      kind: arista_ceos
+      image: ceos:4.35.0F
+      mgmt-ipv4: 172.20.20.202
+    A3A:
+      kind: arista_ceos
+      image: ceos:4.35.0F
+      mgmt-ipv4: 172.20.20.203
+    A4M:
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.20.8
+      mgmt-ipv4: 172.20.20.204
+    D1C:
+      kind: cisco_iol
+      image: vrnetlab/cisco_iol:17.16.01a
+      mgmt-ipv4: 172.20.20.205
+    D2B:
+      kind: aruba_aoscx
+      image: vrnetlab/aruba_arubaos-cx:20210420160538
+      mgmt-ipv4: 172.20.20.206
+    C1J:
+      kind: juniper_cjunosevolved
+      image: cjunosevolved:25.4R1.13-EVO
+      mgmt-ipv4: 172.20.20.207
+    C2A:
+      kind: arista_ceos
+      image: ceos:4.35.0F
+      mgmt-ipv4: 172.20.20.208
+    E1C:
+      kind: cisco_c8000v
+      image: vrnetlab/cisco_c8000v:17.06.03
+      mgmt-ipv4: 172.20.20.209
+    E2C:
+      kind: cisco_c8000v
+      image: vrnetlab/cisco_c8000v:17.06.03
+      mgmt-ipv4: 172.20.20.210
+    B1C:
+      kind: cisco_iol
+      image: vrnetlab/cisco_iol:17.16.01a
+      mgmt-ipv4: 172.20.20.211
+    B2C:
+      kind: cisco_iol
+      image: vrnetlab/cisco_iol:17.16.01a
+      mgmt-ipv4: 172.20.20.212
+    DC1A:
+      kind: arista_ceos
+      image: ceos:4.35.0F
+      mgmt-ipv4: 172.20.20.219
+    IAN:
+      kind: cisco_iol
+      image: vrnetlab/cisco_iol:17.16.01a
+      mgmt-ipv4: 172.20.20.220
+    IBN:
+      kind: cisco_iol
+      image: vrnetlab/cisco_iol:17.16.01a
+      mgmt-ipv4: 172.20.20.230
+    X1C:
+      kind: cisco_c8000v
+      image: vrnetlab/cisco_c8000v:17.06.03
+      mgmt-ipv4: 172.20.20.240
+
+  links:
+    - endpoints: ["A1M:eth1", "D1C:Ethernet0/1"]
+    - endpoints: ["A1M:eth2", "D2B:1/1/2"]
+    - endpoints: ["A2A:eth1", "D1C:Ethernet0/2"]
+    - endpoints: ["A2A:eth2", "D2B:1/1/3"]
+    - endpoints: ["A3A:eth2", "D1C:Ethernet0/3"]
+    - endpoints: ["A3A:eth1", "D2B:1/1/4"]
+    - endpoints: ["A4M:eth2", "D1C:Ethernet1/0"]
+    - endpoints: ["A4M:eth1", "D2B:1/1/5"]
+    - endpoints: ["D1C:Ethernet1/1", "D2B:1/1/8"]
+    - endpoints: ["D1C:Ethernet2/0", "B1C:Ethernet0/1"]
+    - endpoints: ["D1C:Ethernet2/1", "B2C:Ethernet0/1"]
+    - endpoints: ["B1C:Ethernet0/2", "B2C:Ethernet0/2"]
+    - endpoints: ["D1C:Ethernet1/3", "C1J:et-0/0/4"]
+    - endpoints: ["D1C:Ethernet1/2", "C2A:eth3"]
+    - endpoints: ["D2B:1/1/7", "C1J:et-0/0/3"]
+    - endpoints: ["D2B:1/1/6", "C2A:eth2"]
+    - endpoints: ["C1J:et-0/0/2", "C2A:eth4"]
+    - endpoints: ["C2A:eth1", "DC1A:eth1"]
+    - endpoints: ["C1J:et-0/0/0", "E1C:Gi2"]
+    - endpoints: ["C1J:et-0/0/1", "E2C:Gi3"]
+    - endpoints: ["C2A:eth5", "E1C:Gi3"]
+    - endpoints: ["C2A:eth6", "E2C:Gi2"]
+    - endpoints: ["E1C:Gi5", "IAN:Ethernet0/1"]
+    - endpoints: ["E1C:Gi4", "IBN:Ethernet0/2"]
+    - endpoints: ["E2C:Gi4", "IAN:Ethernet0/2"]
+    - endpoints: ["E2C:Gi5", "IBN:Ethernet0/1"]
+    - endpoints: ["X1C:Gi2", "IAN:Ethernet0/3"]
+    - endpoints: ["X1C:Gi3", "IBN:Ethernet0/3"]
+

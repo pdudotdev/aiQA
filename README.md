@@ -11,20 +11,19 @@
 
 ## Overview
 
-AI-powered network test case generator for multi-vendor networks.
+**aiQA in a nutshell:** AI-powered network test case generator for multi-vendor networks.
 
 Describe your network intent once. aiQA generates RFC-compliant test cases from it — vendor-specific CLI commands, precise assertions, and full traceability to RFC sections. Output is a framework-agnostic YAML spec rendered into ready-to-run pytest suites and Ansible playbooks.
 
 **Supported models:**
 - Haiku 4.5, Sonnet 4.6, Opus 4.6
-- Default: Opus 4.6, Effort Low
+- **Default:** Opus 4.6, Effort Low
 
 **Output samples:**
 - See [**output_samples**](output_samples/)
 
 **Documentation:**
 - [**WORKFLOW.md**](metadata/workflow/WORKFLOW.md)
-- [**OPTIMIZATIONS.md**](metadata/scalability/OPTIMIZATIONS.md)
 
 **What's new in v1.2:**
 - [**CHANGELOG.md**](CHANGELOG.md)
@@ -47,8 +46,8 @@ All tests are active: configure a condition → wait → check the result → te
 
 **Supported protocols** (any protocol present in INTENT.json + KB):
 - OSPF (RFCs 2328, 3101; 6 vendor implementations)
-- BGP (RFC 4271)
-- EIGRP, interface health, route policy — derive from KB and intent
+- BGP (RFCs 4271, 4760)
+- EIGRP (RFC 7868)
 
 ## Test Network Topology
 
@@ -58,7 +57,7 @@ All tests are active: configure a condition → wait → check the result → te
 
 **Lab environment:**
 - 16 devices defined in [**TOPOLOGY.yml**](TOPOLOGY.yml)
-- 5 x Cisco IOS, 3 x Cisco IOS-XE, 4 x Arista cEOS, 2 x MikroTik CHR, 1 x Juniper JunOS, 1 x Aruba AOS-CX
+- 8 x Cisco IOS-XE, 4 x Arista cEOS, 2 x MikroTik CHR, 1 x Juniper JunOS, 1 x Aruba AOS-CX
 - See [**lab_configs**](lab_configs/) for my test network's configuration
 
 ## Installation
@@ -101,10 +100,10 @@ aiQA is designed to work with your own test topology. Bring your own:
 
 ## QA Workflow
 
-**Generate tests from a natural language request:**
+**Generate tests from natural language:**
 ```
 claude
-> /qa OSPF timer mismatch tests between D1C and C1J
+> /qa OSPF timer mismatch tests between A4M and D2B
 ```
 
 The skill:
@@ -152,9 +151,12 @@ aiQA/
 │   ├── INTENT.json               # Network design intent + inventory (16 devices)
 │   └── chroma/                   # ChromaDB vector store (generated)
 ├── docs/                         # Knowledge base (RFCs + vendor guides)
-│   ├── rfc2328_summary.md
-│   ├── rfc3101_nssa.md
-│   └── vendor_*.md               # cisco_ios, arista_eos, juniper_junos, aruba_aoscx, mikrotik_ros, vyos
+│   ├── rfc2328_summary.md        # OSPF
+│   ├── rfc3101_nssa.md           # OSPF NSSA
+│   ├── rfc4271_bgp.md            # BGP-4
+│   ├── rfc4760_mpbgp.md          # MP-BGP
+│   ├── rfc7868_eigrp.md          # EIGRP
+│   └── vendor_*_<protocol>.md     # e.g. vendor_cisco_ios_ospf.md, vendor_cisco_ios_bgp.md
 ├── output/
 │   ├── spec/                     # Generated YAML test specifications
 │   ├── pytest/                   # Generated pytest test files
@@ -185,5 +187,4 @@ Licensed under [**GNUv3.0**](LICENSE).
 ## Collaborations
 
 Interested in collaborating?
-- **Email:** [**hello@ainoc.dev**](mailto:hello@ainoc.dev)
 - **LinkedIn:** [**LinkedIn**](https://www.linkedin.com/in/tmihaicatalin/)
