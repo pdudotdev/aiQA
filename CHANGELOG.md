@@ -16,7 +16,7 @@
 - QC-8 (was QC-9) directionality rule now applies to all tests universally
 - Old QC-8 (`rollback_risk`) removed; QC-9 renumbered to QC-8
 - Requests for read-only state checks (e.g., "show me OSPF neighbor states") → agent asks user to be more specific about what condition to test
-- Test scenarios updated: Q1–Q7, legacy tier-specific scenarios removed
+- Test scenarios updated: Q1–Q6, legacy tier-specific scenarios removed
 
 ---
 

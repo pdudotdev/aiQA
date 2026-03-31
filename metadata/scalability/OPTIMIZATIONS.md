@@ -156,7 +156,7 @@ Context bloat has two costs: money and reasoning quality. The agent's effective 
 **Before**: Single 14.5 KB `spec-format.md` loaded at Step 7 (before YAML generation). The renderer guidance (pytest `try/finally` patterns, Ansible `block/always` YAML) was in context during generation — irrelevant noise at that stage.
 
 **After**: Split into:
-- `spec-schema.md` (4 KB) — loaded at Step 7, contains only the YAML field definitions and tier 2 schema rules
+- `spec-schema.md` (4 KB) — loaded at Step 7, contains only the YAML field definitions and schema rules
 - `spec-renderers.md` (5.3 KB) — loaded at Step 9, contains only pytest and Ansible patterns
 
 The renderer code examples are not in context when the agent is doing the hardest reasoning (deriving criteria, grounding in RFCs, writing the YAML spec). They arrive only when doing mechanical template work.
