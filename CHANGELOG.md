@@ -16,7 +16,7 @@
 - QC-8 (was QC-9) directionality rule now applies to all tests universally
 - Old QC-8 (`rollback_risk`) removed; QC-9 renumbered to QC-8
 - Requests for read-only state checks (e.g., "show me OSPF neighbor states") → agent asks user to be more specific about what condition to test
-- Test scenarios updated: Q1–Q6, legacy tier-specific scenarios removed
+- Test scenarios updated: Q1–Q10, legacy tier-specific scenarios removed
 
 ### Knowledge Base — BGP and EIGRP Protocol Coverage
 
@@ -24,8 +24,11 @@
 - Added `rfc4760_mpbgp.md`: MP-BGP extensions — MP_REACH_NLRI, MP_UNREACH_NLRI, AFI/SAFI, capability advertisement
 - Added `rfc7868_eigrp.md`: EIGRP — DUAL algorithm, packet types, RTP, classic/wide metrics, stub routing, SIA handling
 - `_RFC_PROTOCOL_MAP` updated: `rfc4271` → bgp, `rfc4760` → bgp, `rfc7868` → eigrp
-- KB document count: 8 → 11 (5 RFCs + 6 vendor guides)
-- KB chunk count: ~199 → ~269 after re-ingestion
+- Added vendor BGP guides: Cisco IOS, Arista EOS, Juniper JunOS, Aruba AOS-CX, MikroTik RouterOS, VyOS
+- Added vendor EIGRP guide: Cisco IOS
+- Fixed `extract_metadata` to handle single-part vendor names (e.g., `vyos`) — protocol is now always the last filename segment
+- KB document count: 8 → 18 (5 RFCs + 6 OSPF guides + 6 BGP guides + 1 EIGRP guide)
+- KB chunk count: ~199 → ~531 after re-ingestion
 
 ---
 
@@ -67,7 +70,7 @@
 - **Aruba AOS-CX**: verified from official docs — `no area <id> nssa no-summary` is partial revert only (use `no area <id> nssa` for full removal); `ip ospf shutdown` ≠ remove interface from area; `no ip ospf message-digest-key` requires KEY-ID argument
 - **MikroTik RouterOS**: `set <id> <param>=` (empty string = revert to default); `remove <id>` for object-model entries
 - **VyOS**: `delete <config-path>` + `commit`; `commit-confirm <minutes>` safety net; `passive [disable]` is a per-interface override when `passive-interface default` is active
-- KB chunk count: ~170 → ~199 after re-ingestion
+- KB chunk count: ~170 → ~199 after re-ingestion (pre-BGP/EIGRP vendor guides)
 
 ### Context Window and Token Cost Optimizations
 

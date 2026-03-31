@@ -18,6 +18,8 @@ router bgp <asn>
  neighbor <ip> ebgp-multihop <ttl>
  neighbor <ip> password <key>
  neighbor <ip> timers <keepalive> <holdtime>     ! per-neighbor override
+ neighbor <ip> advertisement-interval <seconds>  ! min interval between updates (default: 30s iBGP, 0s eBGP)
+ neighbor <ip> shutdown                          ! admin-disable without removing config
  !
  address-family ipv4 unicast
   network <prefix> mask <mask>
@@ -29,7 +31,9 @@ router bgp <asn>
   neighbor <ip> soft-reconfiguration inbound
   neighbor <ip> default-originate [route-map <name>]
   neighbor <ip> send-community [both | standard | extended]
-  aggregate-address <prefix> <mask> [summary-only] [as-set]
+  neighbor <ip> maximum-prefix <max> [<threshold>%] [restart <minutes>] [warning-only]
+  neighbor <ip> unsuppress-map <name>
+  aggregate-address <prefix> <mask> [summary-only] [as-set] [suppress-map <name>]
  exit-address-family
 !
 ip community-list {standard | expanded} <name> {permit | deny} <community>
@@ -71,13 +75,27 @@ VRF neighbors are defined and activated entirely within the `address-family ipv4
 |---------|---------|
 | `show ip bgp summary` | Neighbor count, ASN, state/prefix count, up/down time, router-id |
 | `show ip bgp` | Full BGP table with best path, next-hop, metric, local-pref, weight |
+| `show ip bgp <network> <mask>` | Detail for a specific prefix: all paths, attributes, best-path selection |
 | `show ip bgp neighbor <ip>` | Detailed neighbor state: timers, capabilities, AFI/SAFI, messages |
-| `show ip bgp neighbor <ip> received-routes` | Routes received from neighbor (requires soft-reconfig inbound) |
+| `show ip bgp neighbor <ip> routes` | Routes accepted from neighbor and installed in BGP table (no soft-reconfig needed) |
+| `show ip bgp neighbor <ip> received-routes` | All routes received from neighbor before inbound policy (requires `soft-reconfiguration inbound`) |
 | `show ip bgp neighbor <ip> advertised-routes` | Routes advertised to neighbor after outbound policy |
+| `show ip bgp paths` | All BGP path attributes in the database (verifies AS-path and attribute propagation) |
+| `show ip bgp rib-failure` | BGP routes NOT installed in the RIB — present in BGP table but overridden by a lower-AD route |
 | `show ip bgp community <community>` | Routes matching a specific community value |
 | `show ip bgp regexp <as-path-regex>` | Routes matching an AS-path regular expression |
 | `show ip bgp prefix-list <name>` | Routes matching a prefix-list filter |
 | `show running-config \| section bgp` | Current BGP configuration |
+
+**`show ip bgp` status codes** (required for writing specific assertions):
+
+```
+Status codes: s suppressed, d damped, h history, * valid, > best, i - internal,
+              r RIB-failure, S Stale
+Origin codes: i - IGP, e - EGP, ? - incomplete
+```
+
+Key codes: `*` = valid route (next-hop reachable), `>` = best path selected, `i` = learned via iBGP, `r` = valid but not installed in RIB (another protocol has lower AD), `s` = suppressed by aggregate. Locally originated routes show next-hop `0.0.0.0` and weight `32768`.
 
 ## IOS-Specific Defaults and Behaviors
 
@@ -91,7 +109,7 @@ VRF neighbors are defined and activated entirely within the `address-family ipv4
 
 - **Administrative distance**: eBGP = 20, iBGP = 200, locally originated = 200. eBGP routes preferred over any IGP (OSPF 110, EIGRP 90). Configurable with `distance bgp <ebgp> <ibgp> <local>`.
 
-- **Neighbor activation**: Neighbors are NOT automatically activated in address-family ipv4 on modern IOS-XE. Must explicitly enter `neighbor <ip> activate` inside `address-family ipv4 unicast`. Legacy IOS auto-activated neighbors; modern IOS-XE does not.
+- **Neighbor activation**: By default, IOS/IOS-XE **auto-activates** neighbors in the IPv4 unicast address-family when `neighbor <ip> remote-as` is configured. The exception: if `no bgp default ipv4-unicast` is configured **before** the neighbor statement, auto-activation is suppressed and `neighbor <ip> activate` must be explicit. `no bgp default ipv4-unicast` has no effect on existing neighbors — only on neighbors added after it.
 
 - **bgp log-neighbor-changes**: Enabled by default on IOS-XE. Logs neighbor state transitions (Idle, Connect, Active, OpenSent, OpenConfirm, Established). On classic IOS, must be explicitly enabled.
 
@@ -99,7 +117,19 @@ VRF neighbors are defined and activated entirely within the `address-family ipv4
 
 - **Best path selection order**: Weight (Cisco-proprietary, highest wins) > LOCAL_PREF (highest) > locally originated > AS-path length (shortest) > origin type (IGP < EGP < incomplete) > MED (lowest) > eBGP over iBGP > IGP metric to next-hop (lowest) > oldest route > lowest router-id > lowest neighbor address. Weight and locally-originated preference are Cisco-specific additions beyond RFC 4271.
 
-- **Soft reconfiguration inbound**: `neighbor <ip> soft-reconfiguration inbound` stores a copy of all received routes before inbound policy is applied. Allows policy changes without resetting the session. Increases memory usage; route-refresh capability (RFC 2918) is preferred when supported.
+- **Weight for locally originated routes**: Routes introduced via `network` or `aggregate-address` have a default weight of **32768**. Routes learned from peers have weight 0. This is why locally originated routes win over any learned route before LOCAL_PREF is even considered.
+
+- **`bgp fast-external-fallover`**: Enabled by default on IOS/IOS-XE. When the directly connected interface to an eBGP peer goes down, the session is immediately torn down without waiting for the hold-timer to expire. Disable with `no bgp fast-external-fallover` when peering over shared media where interface up/down does not indicate peer reachability.
+
+- **`bgp router-id` change resets all sessions**: Configuring or changing `bgp router-id` forces a reset of **all** active BGP sessions. Plan router-id changes during maintenance windows.
+
+- **`neighbor shutdown`**: Administratively disables a neighbor without removing its configuration (route-maps, timers, prefix-lists all preserved). Preferred for maintenance over `no neighbor <ip>` which destroys all config. Re-enable with `no neighbor <ip> shutdown`.
+
+- **`neighbor maximum-prefix`**: `neighbor <ip> maximum-prefix <max> [<threshold>%] [restart <minutes>] [warning-only]` — terminates the session when the peer exceeds `<max>` prefixes. With `warning-only`, logs a warning but does not terminate. With `restart`, the session auto-recovers after the specified interval. `threshold` (percentage) sets an early warning level.
+
+- **`bgp soft-reconfig-backup`**: Process-level alternative to per-neighbor `soft-reconfiguration inbound`. Applies inbound soft-reconfig **only for peers that do not support route-refresh** (RFC 2918). Peers supporting route-refresh are unaffected. Preferable to enabling soft-reconfig on every neighbor since it stores updates only when necessary.
+
+- **Soft reconfiguration inbound**: `neighbor <ip> soft-reconfiguration inbound` stores a copy of all received routes before inbound policy is applied. Required to use `show ip bgp neighbor <ip> received-routes`. Increases memory usage; route-refresh capability (RFC 2918) is preferred when supported.
 
 - **4-byte ASN support**: Enabled by default. Plain notation (e.g., 65536) is the default. `bgp asnotation dot` switches to asdot notation (e.g., 1.0). Change requires `clear ip bgp *` to take effect.
 
@@ -147,7 +177,11 @@ clear ip bgp <ip>                      # hard reset — drops single neighbor se
 - BGP split horizon — routes learned from an iBGP peer are not re-advertised to other iBGP peers. Requires either a full mesh of iBGP sessions, route reflectors (`neighbor <ip> route-reflector-client`), or confederations. This is RFC 4271 behavior, not a bug.
 - `no neighbor <ip>` removes ALL associated config — route-maps, prefix-lists, timers, password, and description are all deleted when the neighbor statement is removed. Use `no neighbor <ip> route-map <name> in` to remove individual attributes without destroying the entire neighbor config.
 - Weight is Cisco-proprietary and overrides all other path selection attributes — a neighbor with `neighbor <ip> weight 100` will always be preferred over LOCAL_PREF, AS-path, or MED. Weight is not advertised to peers; it is local only.
+- Locally originated routes (via `network` or `aggregate-address`) have a default weight of **32768**; all peer-learned routes have weight 0. This makes locally originated routes always win in the weight step before any other attribute is compared.
+- `bgp fast-external-fallover` is enabled by default — eBGP sessions are immediately torn down when the directly connected interface goes down. On shared-media networks where interface state does not reflect peer reachability, this can cause flapping.
+- Changing `bgp router-id` resets ALL active BGP sessions. This is not gradual — all peers see a session reset simultaneously.
 - `clear ip bgp *` drops ALL sessions — causes a full convergence event. Always use `clear ip bgp * soft` or `clear ip bgp <ip> soft in/out` for policy changes.
+- `bgp asnotation dot` changes both the display format AND the pattern-matching format for `show ip bgp regexp`. When dot notation is active, regular expressions must use asdot notation (e.g., `^1\.0$` instead of `^65536$`) or matches silently return no results.
 
 ## Key RFCs
 
@@ -159,3 +193,5 @@ clear ip bgp <ip>                      # hard reset — drops single neighbor se
 - **RFC 4360** — BGP Extended Communities Attribute. Defines extended community values used for route-target in VPN configurations.
 - **RFC 6793** — BGP Support for Four-Octet Autonomous System (AS) Number Space. Extends ASN from 2-byte to 4-byte.
 - **RFC 7911** — Advertisement of Multiple Paths in BGP (ADD-PATH). Allows a BGP speaker to advertise multiple paths for the same prefix.
+- **RFC 4893** — BGP Support for Four-Octet AS Number Space (transition mechanism). Defines AS 23456 (AS_TRANS) as a reserved placeholder for 4-byte ASNs in 2-byte-only UPDATE messages.
+- **RFC 5396** — Textual Representation of Autonomous System (AS) Numbers. Documents asplain (default, e.g. 65536) and asdot (e.g. 1.0) notation formats. Relevant to `bgp asnotation dot`.

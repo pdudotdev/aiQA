@@ -29,10 +29,11 @@ def extract_metadata(file_path: Path) -> dict:
     name = file_path.stem
     if name.startswith("vendor_"):
         parts = name[len("vendor_"):].split("_")
-        # Convention: vendor_<vendor>_<protocol>.md (e.g. vendor_cisco_ios_bgp.md)
-        # Current files: vendor_<vendor>.md (all OSPF)
-        vendor = "_".join(parts[:2]) if len(parts) >= 2 else parts[0]
-        protocol = parts[2] if len(parts) > 2 else "ospf"
+        # Convention: vendor_<vendor>_[<platform>_]<protocol>.md
+        # e.g. vendor_cisco_ios_ospf.md (3 parts) or vendor_vyos_bgp.md (2 parts)
+        # Protocol is always the last part; vendor is everything before it.
+        protocol = parts[-1] if len(parts) >= 2 else "general"
+        vendor = "_".join(parts[:-1]) if len(parts) >= 2 else parts[0]
         return {"vendor": vendor, "topic": "vendor_guide", "source": file_path.name, "protocol": protocol}
     elif name.startswith("rfc"):
         rfc_id = name.split("_")[0]

@@ -10,7 +10,7 @@ import time
 import yaml
 import pytest
 from pathlib import Path
-from conftest import register_rollback, deregister_rollback
+from conftest import register_rollback, deregister_rollback, _poll_until
 
 SPEC_PATH = Path(__file__).resolve().parent.parent / "spec" / "ospf_timer_A1M_D2B.yaml"
 
@@ -95,8 +95,8 @@ def test_ospf_timer_mismatch(connections, test_entry):
 
     register_rollback(setup_conn, teardown["ssh_cli"])
     try:
-        # Setup: configure timer mismatch
-        setup_conn.send_command(setup["ssh_cli"])
+        # Setup: configure timer mismatch (config mode)
+        setup_conn.send_configs(setup["ssh_cli"].split("\n"))
 
         # Wait for convergence
         time.sleep(wait["seconds"])
@@ -113,8 +113,8 @@ def test_ospf_timer_mismatch(connections, test_entry):
             f"neighbor {peer_rid} state={actual_state!r}, expected NOT {assertion['expected']!r}"
         )
     finally:
-        # Teardown: rollback config
-        setup_conn.send_command(teardown["ssh_cli"])
+        # Teardown: rollback config (config mode)
+        setup_conn.send_configs(teardown["ssh_cli"].split("\n"))
 
         # Wait for adjacency to restore
         time.sleep(wait["seconds"])

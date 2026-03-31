@@ -30,30 +30,35 @@ def test_active(device_conn, peer_conn, test_entry):
     setup = test_entry["setup"]
     teardown = test_entry["teardown"]
 
-    # Pre-flight: verify baseline
+    # Pre-flight: verify baseline (show command → send_command)
     out = device_conn.send_command(setup["snapshot_cli"]).result
     baseline = parse_field(out, setup["snapshot_field"])
     assert baseline == setup["snapshot_expected"], f"Pre-flight failed: {baseline!r} != {setup['snapshot_expected']!r}"
 
     register_rollback(device_conn, teardown["ssh_cli"])
     try:
-        device_conn.send_command(setup["ssh_cli"])
+        # Setup: config command → send_configs (enters config mode automatically)
+        device_conn.send_configs(setup["ssh_cli"].split("\n"))
         # wait
         if test_entry["wait"]["type"] in ("convergence", "fixed"):
             time.sleep(test_entry["wait"]["seconds"])
         elif test_entry["wait"]["type"] == "poll":
             _poll_until(device_conn, test_entry["wait"])
-        # assert
+        # assert (show command → send_command)
         result = peer_conn.send_command(test_entry["query"]["ssh_cli"]).result
         actual = parse_and_match(result, test_entry["assertion"], test_entry.get("match_by"))
         assert actual == test_entry["assertion"]["expected"]
     finally:
-        device_conn.send_command(teardown["ssh_cli"])
+        # Teardown: config command → send_configs
+        device_conn.send_configs(teardown["ssh_cli"].split("\n"))
+        # Verify rollback (show command → send_command)
         verify = device_conn.send_command(teardown["verify_cli"]).result
         restored = parse_field(verify, teardown["verify_field"])
         assert restored == teardown["verify_expected"], f"ROLLBACK FAILED: {restored!r}"
         deregister_rollback(device_conn, teardown["ssh_cli"])
 ```
+
+**Important:** Use `send_configs()` (config mode) for `setup.ssh_cli` and `teardown.ssh_cli`. Use `send_command()` (operational mode) for show commands (`snapshot_cli`, `query.ssh_cli`, `verify_cli`). scrapli's `send_configs()` automatically enters and exits config mode on platforms that require it (IOS, EOS, JunOS, AOS-CX). RouterOS commands work with either method since RouterOS has no separate config mode.
 
 ### Session rollback registry (conftest.py)
 
@@ -67,9 +72,32 @@ def deregister_rollback(conn, cmd): _rollback_registry.remove((conn, cmd))
 def emergency_rollback():
     yield
     for conn, cmd in _rollback_registry:
-        try: conn.send_command(cmd)
+        try: conn.send_configs(cmd.split("\n"))
         except Exception as e: print(f"[EMERGENCY ROLLBACK] {cmd}: {e}")
 ```
+
+### Poll-until helper (conftest.py)
+
+```python
+def _poll_until(conn, wait_spec):
+    """Poll a show command until condition is met or timeout expires."""
+    import time
+    timeout = wait_spec["seconds"]
+    interval = 5
+    cli = wait_spec["poll_cli"]
+    condition = wait_spec["poll_condition"]
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        out = conn.send_command(cli).result
+        if condition in out:
+            return
+        time.sleep(interval)
+    raise TimeoutError(f"Poll condition {condition!r} not met after {timeout}s")
+```
+
+### Connection scoping
+
+The `connections` fixture MUST only connect to devices referenced in the YAML spec — not all devices in INTENT.json. Extract unique device names from the spec's `tests[].device.name` and `tests[].peer.name` fields, then connect only to those. This prevents test failures when unused devices are unreachable.
 
 ### Platform → Scrapli mapping
 
@@ -80,7 +108,7 @@ def emergency_rollback():
 | junos | `juniper_junos` |
 | aos | `aruba_aoscx` |
 | routeros | `mikrotik_routeros` |
-| vyos | `linux` |
+| vyos | `linux` | *Not a built-in scrapli platform — requires `scrapli_community` or a custom platform definition* |
 
 ---
 

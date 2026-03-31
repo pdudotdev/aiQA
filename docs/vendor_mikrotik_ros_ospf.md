@@ -148,8 +148,6 @@ set <id> auth=none                # disables authentication
 set <id> authentication-key=     # clears the key
 ```
 
-> **Note**: Revert patterns for RouterOS are based on the RouterOS 7 object model and existing KB documentation. These were not verified against the official MikroTik PDF (111MB, exceeded extraction limit). Verify commands against `/routing ospf <menu> print` before use in active tests.
-
 **Non-obvious exceptions**:
 
 | Scenario | Correct sequence | Gotcha |

@@ -84,10 +84,12 @@ tests:
 
 ## ID Naming Convention
 
-`<skill>_<criterion>_<deviceA>_<deviceB>` — deviceA < deviceB alphabetically.
+`<skill>_<criterion>_<setupDevice>_<verifyDevice>` — encodes test direction (setup target first, verify target second).
 Per-device criteria: `<skill>_<criterion>_<device>`.
 
-Examples: `ospf_timer_TMISMATCH-01_A1M_D2B`, `ospf_adj_ADJ-02_A1M_D1C`, `ospf_adj_ADJ-08_D1C`
+For bidirectional tests (QC-8), each direction gets its own ID: `ospf_timer_TMISMATCH-01_A1M_D2B` (setup on A1M, verify on D2B) and `ospf_timer_TMISMATCH-01_D2B_A1M` (setup on D2B, verify on A1M).
+
+Examples: `ospf_timer_TMISMATCH-01_A1M_D2B`, `ospf_timer_TMISMATCH-01_D2B_A1M`, `ospf_adj_ADJ-08_D1C`
 
 ---
 

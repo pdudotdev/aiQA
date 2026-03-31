@@ -210,3 +210,141 @@ For the equivalent tests using the current system, use the `/qa` scenarios below
 - [ ] Agent does NOT generate any files
 - [ ] Agent asks for clarification about what test condition to configure
 - [ ] No output files created in `output/`
+
+---
+
+### Scenario Q7 — EIGRP K-value mismatch, same-vendor pair
+
+**Verify active test generation for an EIGRP K-value mismatch on a same-vendor link**
+
+```
+/qa EIGRP K-value mismatch tests between B1C and D1C
+```
+
+#### Expected behavior
+
+- Agent parses: protocol=eigrp, feature=K-value mismatch, devices={B1C, D1C}
+- Calls `query_intent("B1C")` and `query_intent("D1C")` (scoped — not full topology)
+- Step 4: KB queried for `cisco_ios` EIGRP K-value config/revert commands and RFC grounding
+- Step 6: presents test plan with ⚠️ warning, waits for confirmation before generating any files
+- B1C (`ios`) ↔ D1C (`ios`) → **same vendor** → QC-8: one direction only
+- Setup on B1C: `metric weights 0 1 0 1 0 1` under `router eigrp 10` (sets K5=1; default K5=0)
+- Observation on D1C: EIGRP neighbor 10.10.10.1 (B1C) drops — K-values must match per RFC 7868 §4.3
+
+#### Verify
+
+- [ ] Agent called `query_intent` per-device (not a single full-topology dump)
+- [ ] Agent paused at Step 6 and did NOT generate files before confirmation
+- [ ] ⚠️ warning shown: "will modify device configuration"
+- [ ] **One direction only (same vendor):** setup on B1C, observe on D1C — no mirror test in the other direction
+- [ ] `setup.ssh_cli` on B1C contains `metric weights 0 1 0 1 0 1` under `router eigrp 10`
+- [ ] `teardown.ssh_cli` on B1C reverts with `no metric weights` (or `metric weights 0 1 0 1 0 0`)
+- [ ] Check command on D1C is `show ip eigrp neighbors` (IOS syntax, from KB)
+- [ ] `check.expected` on D1C asserts 10.10.10.1 is absent from the neighbor table
+- [ ] `setup.snapshot_expected` and `teardown.verify_expected` match (sourced from INTENT.json)
+- [ ] `rfc` field cites RFC 7868 with a specific section (e.g., §4.3 — K-value mismatch)
+- [ ] Pytest uses `try/finally`; Ansible uses `block/always`
+
+---
+
+### Scenario Q8 — EIGRP MD5 authentication mismatch, same-vendor pair
+
+**Verify active test generation for an EIGRP auth mismatch on a same-vendor link**
+
+```
+/qa EIGRP authentication mismatch tests between D1C and B2C
+```
+
+#### Expected behavior
+
+- Agent parses: protocol=eigrp, feature=authentication mismatch, devices={D1C, B2C}
+- Calls `query_intent("D1C")` and `query_intent("B2C")` (scoped)
+- Step 4: KB queried for `cisco_ios` EIGRP MD5 auth config/revert commands and RFC grounding
+- Step 6: presents test plan with ⚠️ warning, waits for confirmation
+- D1C (`ios`) ↔ B2C (`ios`) → **same vendor** → QC-8: one direction only
+- Setup on D1C Eth2/1: add key chain + `ip authentication mode eigrp 10 md5` + `ip authentication key-chain eigrp 10`
+- B2C has no auth configured → MD5 signature mismatch → B2C drops D1C as EIGRP neighbor
+
+#### Verify
+
+- [ ] Agent called `query_intent` per-device (not a single full-topology dump)
+- [ ] Agent paused at Step 6 and did NOT generate files before confirmation
+- [ ] ⚠️ warning shown: "will modify device configuration"
+- [ ] **One direction only (same vendor):** setup on D1C, observe on B2C — no mirror test
+- [ ] `setup.ssh_cli` on D1C includes key chain creation AND interface-level auth commands on Ethernet2/1
+- [ ] `teardown.ssh_cli` on D1C removes both `ip authentication mode eigrp 10 md5`, `ip authentication key-chain eigrp 10 <name>`, and the key chain itself
+- [ ] Check command on B2C is `show ip eigrp neighbors Ethernet0/1` (IOS syntax, from KB)
+- [ ] `check.expected` on B2C asserts 10.10.10.6 is absent from the neighbor output
+- [ ] `setup.snapshot_expected` and `teardown.verify_expected` match (sourced from INTENT.json)
+- [ ] `rfc` field cites RFC 7868 with a specific section covering EIGRP MD5 authentication
+- [ ] Pytest uses `try/finally`; Ansible uses `block/always`
+
+---
+
+### Scenario Q9 — BGP MD5 password mismatch, same-vendor eBGP pair
+
+**Verify active test generation for a BGP session auth mismatch between E1C and IAN**
+
+```
+/qa BGP MD5 password mismatch tests between E1C and IAN
+```
+
+#### Expected behavior
+
+- Agent parses: protocol=bgp, feature=MD5 password mismatch, devices={E1C, IAN}
+- Calls `query_intent("E1C")` and `query_intent("IAN")` (scoped)
+- Step 4: KB queried for `cisco_ios` BGP MD5 password config/revert commands and RFC grounding
+- Step 6: presents test plan with ⚠️ warning, waits for confirmation
+- E1C (`ios`, AS 1010) ↔ IAN (`ios`, AS 4040) → **same vendor** → QC-8: one direction only
+- Setup on E1C: `neighbor 200.40.40.2 password <key>` (IAN has no password configured)
+- TCP MD5 option mismatch → BGP session drops to Idle/Active; IAN session from E1C's perspective is not Established
+
+#### Verify
+
+- [ ] Agent called `query_intent` per-device (not a single full-topology dump)
+- [ ] Agent paused at Step 6 and did NOT generate files before confirmation
+- [ ] ⚠️ warning shown: "will modify device configuration"
+- [ ] **One direction only (same vendor):** setup on E1C, observe on E1C — no mirror test adding password on IAN
+- [ ] `setup.ssh_cli` on E1C contains `neighbor 200.40.40.2 password` under `router bgp 1010`
+- [ ] `teardown.ssh_cli` on E1C uses `no neighbor 200.40.40.2 password`
+- [ ] Check command on E1C is `show ip bgp summary` (IOS syntax, from KB)
+- [ ] `check.expected` asserts peer 200.40.40.2 is NOT in Established state (Idle or Active)
+- [ ] `setup.snapshot_expected` and `teardown.verify_expected` match (sourced from INTENT.json — baseline state is Established)
+- [ ] `rfc` field cites RFC 2385 with a specific section (TCP MD5 Signature Option)
+- [ ] Pytest uses `try/finally`; Ansible uses `block/always`
+
+---
+
+### Scenario Q10 — BGP inbound prefix-list blocking default route on E1C
+
+**Verify active test generation for a per-device BGP inbound filter misconfiguration**
+
+```
+/qa BGP inbound prefix-list tests on E1C blocking the default route from IAN
+```
+
+#### Expected behavior
+
+- Agent parses: protocol=bgp, feature=inbound prefix-list / route filtering, device=E1C (policy is per-device)
+- Calls `query_intent("E1C")` and `query_intent("IAN")` (scoped — needs IAN's peer IP to reference neighbor)
+- Step 4: KB queried for `cisco_ios` BGP prefix-list and `neighbor prefix-list in` config/revert commands
+- Step 6: presents test plan with ⚠️ warning, waits for confirmation
+- Policy criterion is per-device (filter applied on E1C inbound) → QC-8: **no bidirectional mirror**
+- Setup on E1C: prefix-list denying 0.0.0.0/0 applied inbound on neighbor 200.40.40.2; followed by `clear ip bgp 200.40.40.2 soft in`
+- IAN continues to advertise default (`send_default_to_customers: true`); E1C filter drops it before RIB install
+- Observation on E1C: 0.0.0.0/0 absent from BGP table
+
+#### Verify
+
+- [ ] Agent called `query_intent` per-device (not a single full-topology dump)
+- [ ] Agent paused at Step 6 and did NOT generate files before confirmation
+- [ ] ⚠️ warning shown: "will modify device configuration"
+- [ ] **No bidirectional mirror** — filter is a per-device policy criterion; agent generates one test only
+- [ ] `setup.ssh_cli` on E1C includes `ip prefix-list` creation AND `neighbor 200.40.40.2 prefix-list <name> in` AND `clear ip bgp 200.40.40.2 soft in`
+- [ ] `teardown.ssh_cli` on E1C removes the prefix-list from the neighbor (`no neighbor 200.40.40.2 prefix-list <name> in`), removes the prefix-list definition, and runs `clear ip bgp 200.40.40.2 soft in`
+- [ ] Check command on E1C is `show ip bgp 0.0.0.0` or `show ip bgp` (IOS syntax, from KB)
+- [ ] `check.expected` asserts no 0.0.0.0/0 entry is present in the BGP table on E1C
+- [ ] `teardown.verify_expected` asserts 0.0.0.0/0 is present again (default restored from IAN)
+- [ ] `setup.snapshot_expected` and `teardown.verify_expected` match (baseline: default route present)
+- [ ] `rfc` field cites RFC 4271 with a specific section covering inbound UPDATE filtering / route selection
+- [ ] Pytest uses `try/finally`; Ansible uses `block/always`

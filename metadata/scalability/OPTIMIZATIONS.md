@@ -6,11 +6,11 @@ As the aiQA document corpus grows (adding BGP, EIGRP, STP, and other protocols),
 
 This is not a latency problem. It is a **relevance quality** problem: imprecise RAG means the agent may retrieve the wrong vendor's CLI command or cite an irrelevant RFC section, producing incorrect assertions in the generated test spec.
 
-## Current Architecture (v1.0)
+## Current Architecture (v1.2)
 
 | Component | Value |
 |-----------|-------|
-| Chunks | ~269 |
+| Chunks | ~531 |
 | Collection | `network_kb` |
 | Embedding model | `all-MiniLM-L6-v2` (384 dimensions) |
 | Chunk size | 800 characters, 100 overlap |
@@ -130,7 +130,7 @@ Each `/qa` run loads multiple files into the agent's context window. At v1.0, th
 
 Context bloat has two costs: money and reasoning quality. The agent's effective attention is finite — large irrelevant chunks compete with the content that actually matters for the current step.
 
-## Current Architecture (v2.0)
+## Current Architecture (v1.1+)
 
 | File | Loaded when | Size |
 |------|------------|------|
@@ -141,7 +141,7 @@ Context bloat has two costs: money and reasoning quality. The agent's effective 
 | `INTENT.json` (scoped) | Step 2, per-device queries only | ~0.6–2 KB per device |
 | KB chunks | Steps 4, returned by `search_knowledge_base` | ~10–20 KB |
 
-## Optimizations Implemented (v2.0)
+## Optimizations Implemented (v1.1+)
 
 ### 1. Scoped Intent Queries
 
@@ -169,7 +169,7 @@ The skill workflow now explicitly gates each file read to the step that needs it
 
 ## Savings Summary
 
-| Scenario | Before (v1.0) | After (v2.0) | Delta |
+| Scenario | Before (v1.0) | After (v1.1+) | Delta |
 |----------|:-------------:|:------------:|:-----:|
 | Scoped 2-device run — intent | ~24 KB | ~2.4 KB | **-90%** |
 | Spec file loaded at generation step | 14.5 KB | 4 KB | **-72%** |
@@ -197,7 +197,7 @@ Full topology runs (`/qa ... for all devices`) still fetch the complete INTENT.j
 | 3 | Per-protocol collections | Planned — clean architectural boundary, simple to reason about |
 | 4 | Hybrid search (BM25 + vector) | Planned — network terminology is precise; keyword matching helps |
 | 5 | Cross-encoder re-ranking | Planned — biggest precision gain for ambiguous queries |
-| 6 | Larger embedding model | Planned — when corpus exceeds ~500 chunks |
+| 6 | Larger embedding model | Planned — corpus now at ~531 chunks (threshold crossed) |
 | 7 | Dynamic chunk sizing | Planned — when adding non-prose document types |
 | 8 | Query decomposition | Planned — when multi-criterion generation queries become complex |
 | 9 | Fine-tuned embeddings | Planned — when general-purpose models plateau on domain-specific queries |
