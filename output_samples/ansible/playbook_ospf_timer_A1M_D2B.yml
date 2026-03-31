@@ -1,0 +1,227 @@
+---
+# OSPF Timer Mismatch Tests — A1M ↔ D2B
+# RFC 2328 §10.5: Hello and dead timers MUST match for adjacency.
+# Cross-vendor: MikroTik RouterOS (A1M) ↔ Aruba AOS-CX (D2B)
+#
+# WARNING: These tests WILL modify device configuration. Rollback runs in
+# always blocks but is NOT guaranteed if the connection drops mid-test.
+
+# ============================================================
+# Test 1: TMISMATCH-01 — Hello mismatch on A1M → verify on D2B
+# ============================================================
+- name: "TMISMATCH-01: Hello mismatch A1M→D2B"
+  hosts: D2B
+  gather_facts: false
+  vars:
+    rfc: "RFC 2328 §10.5"
+    peer_rid: "1.1.1.1"
+    wait_seconds: 50
+  tasks:
+    - block:
+        - name: "Pre-flight — verify D2B sees A1M as FULL"
+          ansible.netcommon.cli_command:
+            command: "show ip ospf neighbors"
+          register: baseline
+        - ansible.builtin.assert:
+            that: "'FULL' in baseline.stdout"
+            fail_msg: "Pre-flight failed: A1M neighbor not FULL on D2B"
+
+        - name: "Setup — set hello-interval=15 on A1M ether3"
+          ansible.netcommon.cli_command:
+            command: "/routing ospf interface-template set [find where interfaces=ether3] hello-interval=15"
+          delegate_to: A1M
+
+        - name: "Wait for dead timer expiry"
+          ansible.builtin.pause:
+            seconds: "{{ wait_seconds }}"
+
+        - name: "Verify — D2B neighbor state should NOT be FULL"
+          ansible.netcommon.cli_command:
+            command: "show ip ospf neighbors"
+          register: result
+        - ansible.builtin.assert:
+            that: "'FULL' not in result.stdout or '1.1.1.1' not in result.stdout"
+            fail_msg: "[TMISMATCH-01] A1M neighbor still FULL on D2B after hello mismatch"
+
+      always:
+        - name: "Teardown — reset hello-interval on A1M"
+          ansible.netcommon.cli_command:
+            command: "/routing ospf interface-template set [find where interfaces=ether3] hello-interval="
+          delegate_to: A1M
+
+        - name: "Wait for adjacency restoration"
+          ansible.builtin.pause:
+            seconds: "{{ wait_seconds }}"
+
+        - name: "Verify rollback — D2B sees A1M as FULL"
+          ansible.netcommon.cli_command:
+            command: "show ip ospf neighbors"
+          register: rollback_check
+        - ansible.builtin.assert:
+            that: "'FULL' in rollback_check.stdout"
+            fail_msg: "ROLLBACK FAILED: A1M neighbor not FULL on D2B"
+
+# ============================================================
+# Test 2: TMISMATCH-01 — Hello mismatch on D2B → verify on A1M
+# ============================================================
+- name: "TMISMATCH-01: Hello mismatch D2B→A1M"
+  hosts: A1M
+  gather_facts: false
+  vars:
+    rfc: "RFC 2328 §10.5"
+    peer_rid: "11.11.11.22"
+    wait_seconds: 50
+  tasks:
+    - block:
+        - name: "Pre-flight — verify A1M sees D2B as FULL"
+          ansible.netcommon.cli_command:
+            command: "/routing ospf neighbor print detail without-paging"
+          register: baseline
+        - ansible.builtin.assert:
+            that: "'full' in baseline.stdout | lower"
+            fail_msg: "Pre-flight failed: D2B neighbor not FULL on A1M"
+
+        - name: "Setup — set hello-interval=15 on D2B 1/1/2"
+          ansible.netcommon.cli_command:
+            command: "interface 1/1/2\nip ospf hello-interval 15"
+          delegate_to: D2B
+
+        - name: "Wait for dead timer expiry"
+          ansible.builtin.pause:
+            seconds: "{{ wait_seconds }}"
+
+        - name: "Verify — A1M neighbor state should NOT be FULL"
+          ansible.netcommon.cli_command:
+            command: "/routing ospf neighbor print detail without-paging"
+          register: result
+        - ansible.builtin.assert:
+            that: "'full' not in result.stdout | lower or '11.11.11.22' not in result.stdout"
+            fail_msg: "[TMISMATCH-01] D2B neighbor still FULL on A1M after hello mismatch"
+
+      always:
+        - name: "Teardown — reset hello-interval on D2B"
+          ansible.netcommon.cli_command:
+            command: "interface 1/1/2\nno ip ospf hello-interval"
+          delegate_to: D2B
+
+        - name: "Wait for adjacency restoration"
+          ansible.builtin.pause:
+            seconds: "{{ wait_seconds }}"
+
+        - name: "Verify rollback — A1M sees D2B as FULL"
+          ansible.netcommon.cli_command:
+            command: "/routing ospf neighbor print detail without-paging"
+          register: rollback_check
+        - ansible.builtin.assert:
+            that: "'full' in rollback_check.stdout | lower"
+            fail_msg: "ROLLBACK FAILED: D2B neighbor not FULL on A1M"
+
+# ============================================================
+# Test 3: TMISMATCH-02 — Dead mismatch on A1M → verify on D2B
+# ============================================================
+- name: "TMISMATCH-02: Dead mismatch A1M→D2B"
+  hosts: D2B
+  gather_facts: false
+  vars:
+    rfc: "RFC 2328 §10.5"
+    peer_rid: "1.1.1.1"
+    wait_seconds: 70
+  tasks:
+    - block:
+        - name: "Pre-flight — verify D2B sees A1M as FULL"
+          ansible.netcommon.cli_command:
+            command: "show ip ospf neighbors"
+          register: baseline
+        - ansible.builtin.assert:
+            that: "'FULL' in baseline.stdout"
+            fail_msg: "Pre-flight failed: A1M neighbor not FULL on D2B"
+
+        - name: "Setup — set dead-interval=60 on A1M ether3"
+          ansible.netcommon.cli_command:
+            command: "/routing ospf interface-template set [find where interfaces=ether3] dead-interval=60"
+          delegate_to: A1M
+
+        - name: "Wait for dead timer expiry"
+          ansible.builtin.pause:
+            seconds: "{{ wait_seconds }}"
+
+        - name: "Verify — D2B neighbor state should NOT be FULL"
+          ansible.netcommon.cli_command:
+            command: "show ip ospf neighbors"
+          register: result
+        - ansible.builtin.assert:
+            that: "'FULL' not in result.stdout or '1.1.1.1' not in result.stdout"
+            fail_msg: "[TMISMATCH-02] A1M neighbor still FULL on D2B after dead mismatch"
+
+      always:
+        - name: "Teardown — reset dead-interval on A1M"
+          ansible.netcommon.cli_command:
+            command: "/routing ospf interface-template set [find where interfaces=ether3] dead-interval="
+          delegate_to: A1M
+
+        - name: "Wait for adjacency restoration"
+          ansible.builtin.pause:
+            seconds: "{{ wait_seconds }}"
+
+        - name: "Verify rollback — D2B sees A1M as FULL"
+          ansible.netcommon.cli_command:
+            command: "show ip ospf neighbors"
+          register: rollback_check
+        - ansible.builtin.assert:
+            that: "'FULL' in rollback_check.stdout"
+            fail_msg: "ROLLBACK FAILED: A1M neighbor not FULL on D2B"
+
+# ============================================================
+# Test 4: TMISMATCH-02 — Dead mismatch on D2B → verify on A1M
+# ============================================================
+- name: "TMISMATCH-02: Dead mismatch D2B→A1M"
+  hosts: A1M
+  gather_facts: false
+  vars:
+    rfc: "RFC 2328 §10.5"
+    peer_rid: "11.11.11.22"
+    wait_seconds: 70
+  tasks:
+    - block:
+        - name: "Pre-flight — verify A1M sees D2B as FULL"
+          ansible.netcommon.cli_command:
+            command: "/routing ospf neighbor print detail without-paging"
+          register: baseline
+        - ansible.builtin.assert:
+            that: "'full' in baseline.stdout | lower"
+            fail_msg: "Pre-flight failed: D2B neighbor not FULL on A1M"
+
+        - name: "Setup — set dead-interval=60 on D2B 1/1/2"
+          ansible.netcommon.cli_command:
+            command: "interface 1/1/2\nip ospf dead-interval 60"
+          delegate_to: D2B
+
+        - name: "Wait for dead timer expiry"
+          ansible.builtin.pause:
+            seconds: "{{ wait_seconds }}"
+
+        - name: "Verify — A1M neighbor state should NOT be FULL"
+          ansible.netcommon.cli_command:
+            command: "/routing ospf neighbor print detail without-paging"
+          register: result
+        - ansible.builtin.assert:
+            that: "'full' not in result.stdout | lower or '11.11.11.22' not in result.stdout"
+            fail_msg: "[TMISMATCH-02] D2B neighbor still FULL on A1M after dead mismatch"
+
+      always:
+        - name: "Teardown — reset dead-interval on D2B"
+          ansible.netcommon.cli_command:
+            command: "interface 1/1/2\nno ip ospf dead-interval"
+          delegate_to: D2B
+
+        - name: "Wait for adjacency restoration"
+          ansible.builtin.pause:
+            seconds: "{{ wait_seconds }}"
+
+        - name: "Verify rollback — A1M sees D2B as FULL"
+          ansible.netcommon.cli_command:
+            command: "/routing ospf neighbor print detail without-paging"
+          register: rollback_check
+        - ansible.builtin.assert:
+            that: "'full' in rollback_check.stdout | lower"
+            fail_msg: "ROLLBACK FAILED: D2B neighbor not FULL on A1M"

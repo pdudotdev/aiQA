@@ -1,0 +1,35 @@
+---
+# Emergency Rollback — OSPF Timer Mismatch Tests (A1M ↔ D2B)
+#
+# Run this playbook to unconditionally revert all timer changes
+# if a test run was interrupted mid-execution.
+#
+# Usage: ansible-playbook -i inventory.yml playbook_ospf_timer_A1M_D2B_rollback.yml
+
+- name: "Emergency rollback — A1M timers"
+  hosts: A1M
+  gather_facts: false
+  tasks:
+    - name: "Reset hello-interval to default on ether3"
+      ansible.netcommon.cli_command:
+        command: "/routing ospf interface-template set [find where interfaces=ether3] hello-interval="
+      ignore_errors: true
+
+    - name: "Reset dead-interval to default on ether3"
+      ansible.netcommon.cli_command:
+        command: "/routing ospf interface-template set [find where interfaces=ether3] dead-interval="
+      ignore_errors: true
+
+- name: "Emergency rollback — D2B timers"
+  hosts: D2B
+  gather_facts: false
+  tasks:
+    - name: "Reset hello-interval to default on 1/1/2"
+      ansible.netcommon.cli_command:
+        command: "interface 1/1/2\nno ip ospf hello-interval"
+      ignore_errors: true
+
+    - name: "Reset dead-interval to default on 1/1/2"
+      ansible.netcommon.cli_command:
+        command: "interface 1/1/2\nno ip ospf dead-interval"
+      ignore_errors: true

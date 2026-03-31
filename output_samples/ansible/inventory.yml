@@ -1,0 +1,15 @@
+---
+all:
+  children:
+    routeros:
+      hosts:
+        A1M:
+          ansible_host: 172.20.20.201
+          ansible_network_os: community.routeros.routeros
+          ansible_connection: ansible.netcommon.network_cli
+    aos:
+      hosts:
+        D2B:
+          ansible_host: 172.20.20.206
+          ansible_network_os: arubanetworks.aoscx.aoscx
+          ansible_connection: ansible.netcommon.network_cli

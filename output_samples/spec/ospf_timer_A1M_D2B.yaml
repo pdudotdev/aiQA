@@ -1,0 +1,193 @@
+metadata:
+  skill: ospf_timer
+  protocol: ospf
+  generated: "2026-03-31T00:00:00Z"
+  intent_source: data/INTENT.json
+  scope: A1M, D2B
+  pair_count: 1
+  test_count: 4
+
+tests:
+  # ---------- Hello mismatch: misconfigure A1M → verify on D2B ----------
+  - id: ospf_timer_TMISMATCH-01_A1M_D2B
+    criterion: TMISMATCH-01
+    rfc: "RFC 2328 §10.5"
+    description: "Set hello-interval=15 on A1M ether3, verify D2B loses FULL adjacency with A1M"
+    device:
+      name: D2B
+      host: 172.20.20.206
+      platform: aruba_aoscx
+      cli_style: aos
+      interface: 1/1/2
+      ip: 10.1.1.6
+    peer:
+      name: A1M
+      host: 172.20.20.201
+      platform: mikrotik_routeros
+      cli_style: routeros
+      rid: "1.1.1.1"
+      interface: ether3
+      ip: 10.1.1.5
+    context:
+      area: 1
+      area_type: stub
+    query:
+      ssh_cli: "show ip ospf neighbors"
+    assertion:
+      type: neighbor_state_not
+      field: state
+      expected: "FULL"
+      match_by:
+        router_id: "1.1.1.1"
+    setup:
+      target: A1M
+      ssh_cli: "/routing ospf interface-template set [find where interfaces=ether3] hello-interval=15"
+      snapshot_cli: "show ip ospf neighbors"
+      snapshot_field: state
+      snapshot_expected: "FULL"
+    wait:
+      type: convergence
+      seconds: 50
+    teardown:
+      ssh_cli: "/routing ospf interface-template set [find where interfaces=ether3] hello-interval="
+      verify_cli: "show ip ospf neighbors"
+      verify_field: state
+      verify_expected: "FULL"
+
+  # ---------- Hello mismatch: misconfigure D2B → verify on A1M ----------
+  - id: ospf_timer_TMISMATCH-01_D2B_A1M
+    criterion: TMISMATCH-01
+    rfc: "RFC 2328 §10.5"
+    description: "Set hello-interval=15 on D2B 1/1/2, verify A1M loses FULL adjacency with D2B"
+    device:
+      name: A1M
+      host: 172.20.20.201
+      platform: mikrotik_routeros
+      cli_style: routeros
+      interface: ether3
+      ip: 10.1.1.5
+    peer:
+      name: D2B
+      host: 172.20.20.206
+      platform: aruba_aoscx
+      cli_style: aos
+      rid: "11.11.11.22"
+      interface: 1/1/2
+      ip: 10.1.1.6
+    context:
+      area: 1
+      area_type: stub
+    query:
+      ssh_cli: "/routing ospf neighbor print detail without-paging"
+    assertion:
+      type: neighbor_state_not
+      field: state
+      expected: "FULL"
+      match_by:
+        router_id: "11.11.11.22"
+    setup:
+      target: D2B
+      ssh_cli: "interface 1/1/2\nip ospf hello-interval 15"
+      snapshot_cli: "/routing ospf neighbor print detail without-paging"
+      snapshot_field: state
+      snapshot_expected: "FULL"
+    wait:
+      type: convergence
+      seconds: 50
+    teardown:
+      ssh_cli: "interface 1/1/2\nno ip ospf hello-interval"
+      verify_cli: "/routing ospf neighbor print detail without-paging"
+      verify_field: state
+      verify_expected: "FULL"
+
+  # ---------- Dead mismatch: misconfigure A1M → verify on D2B ----------
+  - id: ospf_timer_TMISMATCH-02_A1M_D2B
+    criterion: TMISMATCH-02
+    rfc: "RFC 2328 §10.5"
+    description: "Set dead-interval=60 on A1M ether3, verify D2B loses FULL adjacency with A1M"
+    device:
+      name: D2B
+      host: 172.20.20.206
+      platform: aruba_aoscx
+      cli_style: aos
+      interface: 1/1/2
+      ip: 10.1.1.6
+    peer:
+      name: A1M
+      host: 172.20.20.201
+      platform: mikrotik_routeros
+      cli_style: routeros
+      rid: "1.1.1.1"
+      interface: ether3
+      ip: 10.1.1.5
+    context:
+      area: 1
+      area_type: stub
+    query:
+      ssh_cli: "show ip ospf neighbors"
+    assertion:
+      type: neighbor_state_not
+      field: state
+      expected: "FULL"
+      match_by:
+        router_id: "1.1.1.1"
+    setup:
+      target: A1M
+      ssh_cli: "/routing ospf interface-template set [find where interfaces=ether3] dead-interval=60"
+      snapshot_cli: "show ip ospf neighbors"
+      snapshot_field: state
+      snapshot_expected: "FULL"
+    wait:
+      type: convergence
+      seconds: 70
+    teardown:
+      ssh_cli: "/routing ospf interface-template set [find where interfaces=ether3] dead-interval="
+      verify_cli: "show ip ospf neighbors"
+      verify_field: state
+      verify_expected: "FULL"
+
+  # ---------- Dead mismatch: misconfigure D2B → verify on A1M ----------
+  - id: ospf_timer_TMISMATCH-02_D2B_A1M
+    criterion: TMISMATCH-02
+    rfc: "RFC 2328 §10.5"
+    description: "Set dead-interval=60 on D2B 1/1/2, verify A1M loses FULL adjacency with D2B"
+    device:
+      name: A1M
+      host: 172.20.20.201
+      platform: mikrotik_routeros
+      cli_style: routeros
+      interface: ether3
+      ip: 10.1.1.5
+    peer:
+      name: D2B
+      host: 172.20.20.206
+      platform: aruba_aoscx
+      cli_style: aos
+      rid: "11.11.11.22"
+      interface: 1/1/2
+      ip: 10.1.1.6
+    context:
+      area: 1
+      area_type: stub
+    query:
+      ssh_cli: "/routing ospf neighbor print detail without-paging"
+    assertion:
+      type: neighbor_state_not
+      field: state
+      expected: "FULL"
+      match_by:
+        router_id: "11.11.11.22"
+    setup:
+      target: D2B
+      ssh_cli: "interface 1/1/2\nip ospf dead-interval 60"
+      snapshot_cli: "/routing ospf neighbor print detail without-paging"
+      snapshot_field: state
+      snapshot_expected: "FULL"
+    wait:
+      type: convergence
+      seconds: 70
+    teardown:
+      ssh_cli: "interface 1/1/2\nno ip ospf dead-interval"
+      verify_cli: "/routing ospf neighbor print detail without-paging"
+      verify_field: state
+      verify_expected: "FULL"
