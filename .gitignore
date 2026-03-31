@@ -7,3 +7,4 @@ aiqa/
 output/spec/
 output/pytest/
 output/ansible/
+metadata/legacy/

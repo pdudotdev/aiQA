@@ -106,6 +106,39 @@ In non-default VRFs, `dn-bit-ignore` controls whether LSAs with the DN bit set a
 
 EOS does **not** support: NBMA network type, demand circuits, point-to-multipoint interfaces, OSPFv2 MIB. Do not suggest these during troubleshooting.
 
+## Configuration Revert Patterns
+
+**General rule**: Prefix any interface or process command with `no` to revert to default. Alternatively, `default <command>` explicitly resets to factory default (useful when the current value and the default are both non-zero). Changes take effect immediately.
+
+```
+no ip ospf hello-interval         # reverts to 10s
+no ip ospf dead-interval          # reverts to 40s
+no ip ospf cost                   # reverts to auto (interface cost default 10 unless auto-cost configured)
+no ip ospf network                # reverts to broadcast
+no ip ospf priority               # reverts to 1
+no ip ospf retransmit-interval    # reverts to 5s
+no ip ospf transmit-delay         # reverts to 1s
+no ip ospf disabled               # re-enables interface in OSPF
+no area <id> stub                 # reverts area to normal
+no area <id> nssa                 # reverts NSSA area to normal
+no area <id> range <prefix>       # removes summary range
+no area <id> filter <subnet>      # removes area filter
+no passive-interface <interface>  # re-enables hellos on interface
+no redistribute <protocol>        # removes redistribution
+```
+
+**`default` keyword alternative** (EOS-specific):
+
+`default ip ospf hello-interval` — resets to factory default rather than just negating. Prefer `default` when you want to be explicit that you're returning to the vendor default, not just undoing the last command.
+
+**Non-obvious exceptions**:
+
+| Scenario | Correct sequence | Gotcha |
+|----------|-----------------|--------|
+| Revert authentication | 1. `no ip ospf authentication` 2. `no ip ospf authentication-key` or `no ip ospf message-digest-key <id>` | Two separate commands — same pattern as IOS |
+| Revert OSPF shutdown | `no shutdown` under `router ospf` | `shutdown` under `router ospf` silently disables all OSPF — easy to miss when all neighbors drop |
+| Change distance ospf | `no distance ospf` or `default distance ospf` | Changing AD while OSPF is running causes all OSPF routes to be withdrawn and re-installed (brief routing disruption) |
+
 ## Common Gotchas on EOS
 
 - VRF must be specified in show commands to see VRF-specific OSPF data — `show ip ospf neighbor` without VRF shows only default VRF.

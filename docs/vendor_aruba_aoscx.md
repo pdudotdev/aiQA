@@ -110,6 +110,35 @@ VRF-aware show commands append `vrf <name>` or use `all-vrfs`:
 - **disable / ip ospf shutdown**: `disable` under `router ospf` disables the entire OSPF process without removing config. `ip ospf shutdown` on an interface disables OSPF on that interface (sets state to Down) but does not remove the area assignment.
 - **Command syntax differences**: `show ip ospf neighbors` (plural), `show ip ospf lsdb` (not `database`), `show interface brief` (no `ip`).
 
+## Configuration Revert Patterns
+
+**General rule**: Prefix any interface or process command with `no` to revert to default. Changes take effect immediately.
+
+```
+no ip ospf hello-interval         # reverts to 10s
+no ip ospf dead-interval          # reverts to 40s
+no ip ospf cost                   # reverts to 1 (default, not auto-derived unless reference-bandwidth configured)
+no ip ospf network                # reverts to broadcast
+no ip ospf priority               # reverts to 1
+no ip ospf retransmit-interval    # reverts to 5s
+no ip ospf transit-delay          # reverts to 1s
+no ip ospf bfd                    # disables BFD
+no area <id> stub                 # reverts area to normal
+no area <id> nssa                 # reverts NSSA area to normal
+no area <id> range <prefix>       # removes summary range
+no redistribute <protocol>        # removes redistribution
+```
+
+**Non-obvious exceptions** (verified from AOS-CX documentation):
+
+| Scenario | Correct sequence | Gotcha |
+|----------|-----------------|--------|
+| Revert NSSA to normal | `no area <id> nssa` (WITHOUT `no-summary`) | **`no area <id> nssa no-summary` is a PARTIAL revert** — it enables inter-area routes into the NSSA but does NOT change area type back to normal. Only `no area <id> nssa` fully reverts. |
+| Revert authentication | 1. `no ip ospf authentication` (disables and sets to null) 2. `no ip ospf message-digest-key <id>` (requires specifying KEY-ID) | `no ip ospf authentication` sets auth to null (not absent). `no ip ospf message-digest-key` requires the specific key-id — you cannot omit the key-id. |
+| Remove interface from area | `no ip ospf area` (NOT `ip ospf shutdown`) | `ip ospf shutdown` disables OSPF on the interface but keeps area assignment. `no ip ospf area` fully removes the interface from OSPF. |
+| Reset default-metric for stub | `no area <id> default-metric` | Resets to 1, not to "unconfigured". |
+| Remove entire OSPF process | `no router ospf <pid>` | Removes the entire OSPF instance and all its configuration. |
+
 ## Common Gotchas on AOS-CX
 
 - **Reference bandwidth is 100 Gbps** (100,000 Mbps), not 100 Mbps like IOS/EOS. This means cost values differ significantly from IOS/EOS for the same link speed. A 1G link has cost 100 on AOS-CX vs cost 1 on IOS/EOS with default settings.

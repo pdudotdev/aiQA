@@ -115,6 +115,50 @@ Note: Always append `without-paging` for scripted/SSH access. Use `terse` for co
 - **use-dn**: Forces use or ignore of the DN bit in LSAs. Useful in CE-PE scenarios to inject intra-area routes into a VRF. Unset by default (follows RFC behavior).
 - **LSA refresh**: Every 30 minutes. MaxAge is 60 minutes.
 
+## Configuration Revert Patterns
+
+**General rule**: RouterOS uses an object-based model. Revert approaches depend on whether you're resetting a property on an object or removing an object entirely.
+
+- **Reset a property to default**: `set <id> <property>=` (empty value) — e.g., `set 0 hello-interval=` resets hello-interval to default on interface-template #0
+- **Remove an object**: `remove <id>` — deletes the object entirely (use for area-range, static-neighbor, etc.)
+- Changes take effect immediately (no commit step).
+
+```
+# Reset interface-template timer properties
+/routing ospf interface-template
+set <id> hello-interval=          # reset to 10s
+set <id> dead-interval=           # reset to 40s
+set <id> retransmit-interval=     # reset to 5s
+set <id> transmit-delay=          # reset to 1s
+set <id> cost=                    # reset to auto
+set <id> priority=                # reset to 128 (RouterOS 7 default; note: NOT 1)
+
+# Remove area type
+/routing ospf area
+set <id> type=default             # revert stub/nssa to normal
+set <id> no-summaries=no          # remove totally-stubby flag
+
+# Remove area range
+/routing ospf area/range
+remove <id>                       # delete the range object
+
+# Remove authentication
+/routing ospf interface-template
+set <id> auth=none                # disables authentication
+set <id> authentication-key=     # clears the key
+```
+
+> **Note**: Revert patterns for RouterOS are based on the RouterOS 7 object model and existing KB documentation. These were not verified against the official MikroTik PDF (111MB, exceeded extraction limit). Verify commands against `/routing ospf <menu> print` before use in active tests.
+
+**Non-obvious exceptions**:
+
+| Scenario | Correct sequence | Gotcha |
+|----------|-----------------|--------|
+| Revert area type to normal | `set <id> type=default` | Area type field accepts `default`, `stub`, `nssa` — not `normal`. |
+| Reset DR priority | `set <id> priority=` (empty) or `set <id> priority=128` | Default is 128 in RouterOS 7, changed from 1 in RouterOS 6. |
+| Revert redistribution | `set <instance-id> redistribute=` (empty) | Redistribution is a comma-separated list on the instance object. Setting empty string removes all. To remove one source: set to the remaining list. |
+| Revert authentication | `set <id> auth=none` then `set <id> authentication-key=` | Must unset both auth type and key. |
+
 ## Common Gotchas on RouterOS
 
 - Forgetting `without-paging` causes SSH sessions to hang waiting for user input.

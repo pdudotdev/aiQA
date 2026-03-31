@@ -113,6 +113,35 @@ Default VRF show commands display OSPF data from all VRFs. Specify `vrf <name>` 
 - **LSA refresh**: Every 30 minutes. MaxAge is 60 minutes. LSA group pacing (default 240s) batches refreshes to avoid simultaneous flooding spikes.
 - **Redistribution**: `redistribute` requires the `subnets` keyword to include non-classful (subnet) routes. Without `subnets`, only classful network boundaries are redistributed.
 
+## Configuration Revert Patterns
+
+**General rule**: Prefix any interface or process command with `no` to restore the default. Changes take effect immediately with no commit step.
+
+```
+no ip ospf hello-interval         # reverts to 10s (broadcast/P2P)
+no ip ospf dead-interval          # reverts to 40s
+no ip ospf cost                   # reverts to auto (from reference bandwidth)
+no ip ospf network                # reverts to broadcast
+no ip ospf priority               # reverts to 1
+no ip ospf retransmit-interval    # reverts to 5s
+no ip ospf transmit-delay         # reverts to 1s
+no ip ospf mtu-ignore             # re-enables MTU check
+no area <id> stub                 # reverts area to normal
+no area <id> nssa                 # reverts NSSA area to normal
+no area <id> range <network> <mask>   # removes summary range
+no passive-interface <interface>  # re-enables hellos on interface
+no redistribute <protocol>        # removes redistribution
+```
+
+**Non-obvious exceptions**:
+
+| Scenario | Correct sequence | Gotcha |
+|----------|-----------------|--------|
+| Revert authentication | 1. `no ip ospf authentication` (disable auth) 2. `no ip ospf authentication-key` or `no ip ospf message-digest-key <id>` | Two separate commands required — disabling auth and removing the key are independent operations |
+| Revert area stub with no-summary | `no area <id> stub no-summary` (removes no-summary flag, area stays stub), or `no area <id> stub` (removes stub entirely) | Be explicit — `no area <id> stub no-summary` and `no area <id> stub` produce different results |
+| Change router-id | `router-id <new-id>` then `clear ip ospf process` | On IOS XE < 17.13.1a, router-id change requires `clear ip ospf process` (drops all adjacencies). Later releases apply immediately. |
+| Revert redistribution | `no redistribute <protocol> [subnets]` | Routes learned via redistribution may persist briefly after removal until LSA ages out (up to 1800s without explicit purge) |
+
 ## Common Gotchas on IOS
 
 - Forgetting `subnets` on `redistribute` causes only classful networks (e.g., 10.0.0.0/8, not 10.1.1.0/24) to be redistributed — the most common redistribution mistake on IOS.

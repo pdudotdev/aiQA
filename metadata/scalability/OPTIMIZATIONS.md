@@ -120,6 +120,74 @@ One-size-fits-all (800 chars) becomes suboptimal as document diversity grows:
 | Vendor guides | 600-800 chars | CLI examples need surrounding context |
 | Intent | Per-device | Structured; one chunk per router's full config |
 
+---
+
+# Context Window and Token Cost Optimizations
+
+## Problem Statement
+
+Each `/qa` run loads multiple files into the agent's context window. At v1.0, this included a full 24 KB INTENT.json dump (even for 2-device scoped requests), a combined 14.5 KB spec-format.md loaded upfront before any generation, plus the SKILL.md and CLAUDE.md. For a scoped 2-device run on Sonnet 4.6 (~$3/M input tokens), total input overhead was ~65-75K tokens (~$0.20-0.40 per run).
+
+Context bloat has two costs: money and reasoning quality. The agent's effective attention is finite — large irrelevant chunks compete with the content that actually matters for the current step.
+
+## Current Architecture (v2.0)
+
+| File | Loaded when | Size |
+|------|------------|------|
+| `CLAUDE.md` | Always (Claude Code auto-loads) | 3.5 KB |
+| `SKILL.md` | At `/qa` invocation | 12 KB |
+| `spec-schema.md` | Step 7, just before YAML generation | 4 KB |
+| `spec-renderers.md` | Step 9, just before pytest/Ansible rendering | 5.3 KB |
+| `INTENT.json` (scoped) | Step 2, per-device queries only | ~0.6–2 KB per device |
+| KB chunks | Steps 4, returned by `search_knowledge_base` | ~10–20 KB |
+
+## Optimizations Implemented (v2.0)
+
+### 1. Scoped Intent Queries
+
+**Before**: `query_intent()` with no argument every run — dumps all 16 devices (~24 KB) into context regardless of request scope.
+
+**After**: When device names are explicit in the request, the skill calls `query_intent("<device>")` per named device. Full topology fetch is reserved for "all devices" or role-based requests.
+
+**Impact**: 2-device scoped run drops from ~24 KB to ~2.4 KB intent input. **-90% for scoped runs.**
+
+### 2. Split spec-format.md into schema + renderers
+
+**Before**: Single 14.5 KB `spec-format.md` loaded at Step 7 (before YAML generation). The renderer guidance (pytest `try/finally` patterns, Ansible `block/always` YAML) was in context during generation — irrelevant noise at that stage.
+
+**After**: Split into:
+- `spec-schema.md` (4 KB) — loaded at Step 7, contains only the YAML field definitions and tier 2 schema rules
+- `spec-renderers.md` (5.3 KB) — loaded at Step 9, contains only pytest and Ansible patterns
+
+The renderer code examples are not in context when the agent is doing the hardest reasoning (deriving criteria, grounding in RFCs, writing the YAML spec). They arrive only when doing mechanical template work.
+
+**Impact**: -5.2 KB through deduplication and tightening. More importantly, renderer noise is absent during spec generation — the step where hallucination risk is highest.
+
+### 3. Step sequencing (lazy loading)
+
+The skill workflow now explicitly gates each file read to the step that needs it. No file is loaded "just in case." This is enforced by the step instructions ("Do not load spec-renderers.md yet — that's for Steps 9-10").
+
+## Savings Summary
+
+| Scenario | Before (v1.0) | After (v2.0) | Delta |
+|----------|:-------------:|:------------:|:-----:|
+| Scoped 2-device run — intent | ~24 KB | ~2.4 KB | **-90%** |
+| Spec file loaded at generation step | 14.5 KB | 4 KB | **-72%** |
+| Total spec + intent overhead | ~38.5 KB | ~11.7 KB | **-70%** |
+| Estimated cost (Sonnet 4.6, 2-device) | ~$0.08–0.12 | ~$0.03–0.05 | **~-60%** |
+
+Full topology runs (`/qa ... for all devices`) still fetch the complete INTENT.json — that's unavoidable and correct.
+
+## Recommended Next Steps
+
+| Priority | Optimization | Expected Impact |
+|----------|-------------|----------------|
+| 1 | **SKILL.md compression** — the 12 KB skill has verbose step templates; tighten code examples | -3–4 KB |
+| 2 | **Per-device intent caching** — if multiple steps query the same device, cache the result in-session rather than re-fetching | Latency, not cost |
+| 3 | **Streaming spec generation** — write spec entries as they are derived rather than accumulating all in context first | Reduces peak context usage |
+
+---
+
 ## Recommended Implementation Order
 
 | Priority | Optimization | Status |

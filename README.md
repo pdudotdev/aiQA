@@ -1,6 +1,6 @@
 # aiQA • AI-Powered Network Test Case Generation
 
-[![Version](https://img.shields.io/badge/version-1.0-1a1a2e)](https://github.com/pdudotdev/aiQA/releases/tag/v1.0.0)
+[![Version](https://img.shields.io/badge/version-1.2-1a1a2e)](https://github.com/pdudotdev/aiQA/releases/tag/v1.2.0)
 ![License](https://img.shields.io/badge/license-GPLv3-1a1a2e)
 [![Last Commit](https://img.shields.io/github/last-commit/pdudotdev/aiQA?color=1a1a2e)](https://github.com/pdudotdev/aiQA/commits/main/)
 
@@ -16,7 +16,8 @@ AI-powered network test case generator for multi-vendor networks.
 Describe your network intent once. aiQA generates RFC-compliant test cases from it — vendor-specific CLI commands, precise assertions, and full traceability to RFC sections. Output is a framework-agnostic YAML spec rendered into ready-to-run pytest suites and Ansible playbooks.
 
 **Supported models:**
-- Haiku 4.5, Sonnet 4.6, Opus 4.6 (default, best reasoning)
+- Haiku 4.5, Sonnet 4.6, Opus 4.6
+- Default: Opus 4.6, Effort Low
 
 **Output samples:**
 - See [**output_samples**](output_samples/)
@@ -25,7 +26,7 @@ Describe your network intent once. aiQA generates RFC-compliant test cases from 
 - [**WORKFLOW.md**](metadata/workflow/WORKFLOW.md)
 - [**OPTIMIZATIONS.md**](metadata/scalability/OPTIMIZATIONS.md)
 
-**What's new in v1.0.0:**
+**What's new in v1.2:**
 - [**CHANGELOG.md**](CHANGELOG.md)
 
 ## Tech Stack
@@ -40,11 +41,14 @@ Describe your network intent once. aiQA generates RFC-compliant test cases from 
 
 ## Scope
 
-| Protocol | Skill | What's Generated |
-|----------|-------|-----------------|
-| **OSPF** | `/ospf-adj` | Adjacency test cases (neighbor state, timers, area, MTU, router ID) |
-| **EIGRP** | `/eigrp-adj` | *(planned)* |
-| **BGP** | `/bgp-adj` | *(planned)* |
+aiQA uses a single general-purpose `/qa` skill that handles any protocol, any feature, and any test type from a natural language request. No per-protocol skill files needed.
+
+All tests are active: configure a condition → wait → check the result → teardown (revert). Every test modifies device configuration and must have a complete teardown block. The agent warns the user and requires explicit confirmation before generating any tests.
+
+**Supported protocols** (any protocol present in INTENT.json + KB):
+- OSPF (RFCs 2328, 3101; 6 vendor implementations)
+- BGP (RFC 4271)
+- EIGRP, interface health, route policy — derive from KB and intent
 
 ## Test Network Topology
 
@@ -97,27 +101,28 @@ aiQA is designed to work with your own test topology. Bring your own:
 
 ## QA Workflow
 
-**Generate tests for a specific device pair:**
+**Generate tests from a natural language request:**
 ```
 claude
-> /ospf-adj D1C C1J
+> /qa OSPF timer mismatch tests between D1C and C1J
 ```
 
-**Generate tests for the full topology:**
-```
-claude
-> /ospf-adj
-```
-
-The skill extracts adjacency pairs from your design intent, researches the correct CLI commands and RFC references via RAG, and produces three output files per run:
+The skill:
+1. Parses the request — protocol, feature, device scope, failure mode
+2. Resolves device intent (scoped per-device queries, not full topology dump)
+3. Asks clarifying questions if needed (scope, test condition)
+4. Searches the KB for RFC grounding, vendor CLI commands, and rollback patterns
+5. Presents a **test plan for confirmation** before generating anything
+6. Generates a YAML spec, pytest suite, and Ansible playbook
 
 | Output | Path | Description |
 |--------|------|-------------|
-| YAML spec | `output/spec/ospf_adjacency_C1J_D1C.yaml` | Canonical, framework-agnostic test specification |
-| Pytest suite | `output/pytest/test_ospf_adjacency_C1J_D1C.py` | Executable tests using scrapli for SSH |
-| Ansible playbook | `output/ansible/playbook_ospf_adjacency_C1J_D1C.yml` | Ansible tasks using `cli_command` module |
+| YAML spec | `output/spec/<protocol>_<feature>[_<scope>].yaml` | Canonical, framework-agnostic test specification |
+| Pytest suite | `output/pytest/test_<protocol>_<feature>[_<scope>].py` | Executable tests using scrapli for SSH |
+| Ansible playbook | `output/ansible/playbook_<protocol>_<feature>[_<scope>].yml` | Ansible tasks using `cli_command` module |
+| Emergency rollback | `output/ansible/playbook_<protocol>_<feature>_rollback.yml` | Unconditional teardown playbook |
 
-Each run that specifies device arguments produces its own scoped output files — so `/ospf-adj D1C C1J` and `/ospf-adj A1M D2B` coexist without overwriting each other.
+**Safety model**: Every test has a mandatory `teardown` block. pytest uses `try/finally` (teardown always runs). Ansible uses `block/always`. A session-level rollback registry in `conftest.py` covers interrupted test runs. Cross-vendor pairs test both directions; same-vendor pairs test one direction only.
 
 ## Knowledge Base
 
@@ -132,6 +137,8 @@ make ingest
 - `protocol` metadata field — filters search by protocol (ospf, bgp, eigrp), eliminating cross-protocol noise
 - Contextual chunk headers — source and protocol prepended to each chunk for better embedding quality
 - Compound filtering — combine vendor, topic, and protocol filters in a single query
+- Scoped intent queries — `query_intent("<device>")` per named device; full topology only when needed
+- Lazy-loaded schema files — `spec-schema.md` at spec generation, `spec-renderers.md` at rendering
 
 See [**OPTIMIZATIONS.md**](metadata/scalability/OPTIMIZATIONS.md) for the full optimization roadmap.
 
@@ -156,10 +163,11 @@ aiQA/
 │   ├── scalability/              # RAG optimization roadmap
 │   └── workflow/                 # End-to-end workflow documentation
 ├── .claude/
-│   ├── spec-format.md            # Shared YAML spec schema + renderer guidance
+│   ├── spec-schema.md            # YAML spec schema — loaded at Step 7, before generation
+│   ├── spec-renderers.md         # pytest + Ansible renderer guidance — loaded at Step 9, before rendering
 │   └── skills/
-│       └── ospf-adj/
-│           └── SKILL.md          # /ospf-adj workflow, criteria table, extraction algorithm
+│       └── qa/
+│           └── SKILL.md          # /qa general QA methodology skill (13-step workflow, QC-1 through QC-8)
 ├── CLAUDE.md                     # Agent system prompt (tools, quality standards, data model)
 ├── Makefile                      # Setup automation (make setup / ingest / clean)
 ├── requirements.txt

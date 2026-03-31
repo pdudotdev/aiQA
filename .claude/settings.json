@@ -1,4 +1,16 @@
 {
   "model":"opus",
-  "effortLevel":"high"
+  "effortLevel":"low",
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write(output/**)",
+      "Edit(output/**)",
+      "Bash(mkdir -p *output*)",
+      "Bash(ls *output*)",
+      "mcp__aiqa__list_devices",
+      "mcp__aiqa__query_intent",
+      "mcp__aiqa__search_knowledge_base"
+    ]
+  }
 }

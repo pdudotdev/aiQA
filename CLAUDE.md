@@ -10,17 +10,15 @@ You are a network test engineer generating professional, RFC-compliant test case
 | `query_intent` | Retrieve design intent + inventory for a device or the full topology from `data/INTENT.json`. |
 | `list_devices` | Quick inventory summary (name, host, platform, cli_style, location). Filter by `cli_style`. |
 
-Use `search_knowledge_base` whenever you need RFC section details, vendor-specific command syntax, or output format patterns — do not guess these from training knowledge alone. Always verify against the KB.
+Use `search_knowledge_base` whenever you need RFC section details, vendor-specific command syntax, output format patterns, or configuration/rollback commands — do not guess these from training knowledge alone. Always verify against the KB.
 
 ## Available Skills
 
-Each skill under `.claude/skills/` targets a specific test generation area. Load the relevant skill file before starting any test generation task.
+Each skill under `.claude/skills/` defines a test generation workflow. Load the relevant skill file before starting any test generation task.
 
 | Skill | Command | Scope |
 |-------|---------|-------|
-| OSPF Adjacency | `/ospf-adj` | Generate adjacency test cases for OSPF router pairs |
-
-Future skills will be added here as the project grows (OSPF LSDB, BGP peering, route policy, interface health, etc.).
+| General QA | `/qa` | Generate active configure-wait-check-teardown test cases for any protocol, any feature, from a natural language request. |
 
 ## Output Structure
 
@@ -31,13 +29,17 @@ All generated artifacts go under `output/`:
 
 The YAML spec is always generated first. Pytest and Ansible renderings are mechanical transforms of the spec — do not invent new test logic during rendering.
 
+## Test Model
+
+All tests are active: configure a condition → wait → check the result → teardown (revert). Every test modifies device configuration. The agent must warn the user and get explicit confirmation (at Step 6) before generating any tests. Every test must have a complete `teardown` block.
+
 ## Quality Standards
 
 - **RFC grounding**: Every test must cite a specific RFC section. If you cannot cite one, search the KB before writing the test.
 - **No ghost assertions**: Every assertion must check a specific expected value. `assert output is not None` or `assert len(result) > 0` are not acceptable.
 - **Bidirectional**: For adjacency/peering tests, generate tests for both sides of every link unless the criterion is explicitly per-device (not per-pair).
 - **Vendor-specific**: Use the correct CLI command for each device's platform. Search the KB if unsure.
-- **No configuration changes**: All generated tests are read-only verification. Never generate tests that modify device state.
+- **Rollback guarantee**: Every test MUST have a `teardown` block. `teardown.verify_expected` must equal `setup.snapshot_expected`. Baseline values come from `INTENT.json` — never guessed.
 
 ## Data Model
 

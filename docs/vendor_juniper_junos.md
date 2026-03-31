@@ -119,6 +119,43 @@ Note: JunOS uses `show ospf` with no `ip` prefix.
 - **LSA refresh**: Default 50 minutes (3000 seconds). MaxAge = 60 minutes. Flood-reduction suppresses this refresh on stable links.
 - **Tracing (debug equivalent)**: `traceoptions` under `[edit protocols ospf]` with flags: `all`, `general`, `normal`, `policy`, `route`, `state`, `task`, `timer`. Output goes to a named file in `/var/log/`, not to the console. Use `show ospf trace` to view. Equivalent to IOS `debug ip ospf` but file-based.
 
+## Configuration Revert Patterns
+
+**General rule**: `delete <config-path>` removes a configuration statement and reverts to default. All changes are staged in candidate config and require `commit` to activate. JunOS provides built-in config versioning — `rollback <n>` (0=current, 1=previous, up to 49) lets you restore any prior committed config, followed by `commit`.
+
+```
+delete protocols ospf area <id> interface <name> hello-interval
+delete protocols ospf area <id> interface <name> dead-interval
+delete protocols ospf area <id> interface <name> metric
+delete protocols ospf area <id> interface <name> priority
+delete protocols ospf area <id> interface <name> retransmit-interval
+delete protocols ospf area <id> interface <name> transit-delay
+delete protocols ospf area <id> interface <name> authentication
+delete protocols ospf area <id> stub
+delete protocols ospf area <id> nssa
+delete protocols ospf area <id> area-range <prefix>/<len>
+delete protocols ospf area <id> interface <name> passive
+```
+
+After any `delete`, run `commit` to activate. Optionally use `commit confirmed <minutes>` for a timed safety net — if you don't re-commit within the window, config automatically rolls back.
+
+**Built-in rollback**:
+
+```
+rollback 1    # restore previous committed config
+commit        # activate the rollback
+```
+
+**Non-obvious exceptions**:
+
+| Scenario | Correct sequence | Gotcha |
+|----------|-----------------|--------|
+| Revert stub area to normal | `delete protocols ospf area <id> stub` + `commit` | If `default-metric` was configured under stub, it is also removed by the parent delete. No separate cleanup needed. |
+| Revert ABR stub default-metric | `delete protocols ospf area <id> stub default-metric` + `commit` | ABR must have `default-metric` for the area default-route to be advertised into stub/NSSA. Removing it suppresses the default. |
+| Revert NSSA area to normal | `delete protocols ospf area <id> nssa` + `commit` | Any `no-summaries` or `default-lsa` sub-stanzas are removed with the parent delete. |
+| Revert authentication | `delete protocols ospf area <id> interface <name> authentication` + `commit` | Single `delete` removes entire auth config (type and key together) — simpler than IOS/EOS |
+| Revert router-id | `delete routing-options router-id` + `commit` | Router-id is under `[edit routing-options]`, not under `[edit protocols ospf]`. Old LSAs persist in the database until retransmit interval times out. |
+
 ## Common Gotchas on JunOS
 
 - `show ospf` has no `ip` prefix — it is not `show ip ospf` as on IOS, EOS, or AOS-CX.

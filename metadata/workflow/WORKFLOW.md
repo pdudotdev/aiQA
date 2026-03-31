@@ -1,6 +1,6 @@
 # aiQA — How It Works
 
-aiQA is a framework that gives Claude the context it needs to generate professional, RFC-compliant network test cases from design intent. It produces vendor-agnostic YAML test specifications and renders them into executable pytest suites and Ansible playbooks.
+aiQA is a framework that gives Claude the context it needs to generate professional, RFC-compliant network test cases from design intent. It produces framework-agnostic YAML test specifications and renders them into executable pytest suites and Ansible playbooks.
 
 ---
 
@@ -11,7 +11,7 @@ aiQA exposes 3 tools registered in `server.py`:
 | Tool | Purpose | Backend |
 |------|---------|---------|
 | `search_knowledge_base` | Semantic search over RFCs and vendor docs | ChromaDB + MiniLM embeddings |
-| `query_intent` | Network design intent (roles, OSPF areas, links, router IDs) | `data/INTENT.json` |
+| `query_intent` | Network design intent (roles, OSPF areas, links, router IDs, baselines) | `data/INTENT.json` |
 | `list_devices` | Inventory summary filtered by CLI style | `data/INTENT.json` |
 
 ### The Knowledge Base
@@ -22,67 +22,165 @@ aiQA exposes 3 tools registered in `server.py`:
 2. **Query**: The search query is embedded into the same vector space. ChromaDB returns the top-k most similar chunks by cosine distance.
 3. **Filters**: Optional `vendor`, `topic`, and `protocol` filters narrow results before similarity search. Compound filtering is supported (e.g., `vendor=cisco_ios` + `protocol=ospf`).
 
+The KB contains:
+- Verification commands (show commands per vendor)
+- Configuration commands (for setup blocks)
+- Rollback/revert patterns (for teardown blocks) — each vendor doc has a "Configuration Revert Patterns" section
+- RFC sections and protocol-specific gotchas
+
 Device inventory and design intent are NOT in ChromaDB — they are served at query time by `list_devices` and `query_intent`.
 
 See [OPTIMIZATIONS.md](../scalability/OPTIMIZATIONS.md) for the full RAG optimization roadmap.
 
 ---
 
-## Test Generation Flow
+## Test Model
 
-The agent is a Claude Code session with the aiQA MCP server active. The user invokes a skill to start test generation.
+All tests are active: configure a condition → wait → check the result → teardown (revert). There are no read-only tests.
 
-### Example: `/ospf-adj D1C C1J`
+Each test entry has three mandatory blocks:
 
 ```
-/ospf-adj D1C C1J
+setup  →  wait  →  assert  →  teardown (always runs)
+```
 
-  Step 0 — Preflight
-    list_devices()         → verify inventory is loaded
-    query_intent()         → verify 16 routers available
-    search_knowledge_base() → verify KB responds
+| Block | Purpose | Fields |
+|-------|---------|--------|
+| `setup` | Configure the test condition on the target device; snapshot the baseline value | `target`, `ssh_cli`, `snapshot_cli`, `snapshot_field`, `snapshot_expected` |
+| `wait` | Allow protocol convergence after the config change | `type` (convergence/fixed/poll), `seconds` |
+| `teardown` | Revert the config change; verify rollback succeeded | `ssh_cli`, `verify_cli`, `verify_field`, `verify_expected` |
 
-  Step 1 — Load Spec Format
-    Read .claude/spec-format.md
-    → YAML schema, pytest renderer guidance, Ansible renderer guidance
+`teardown.verify_expected` must equal `setup.snapshot_expected`. Both values come from `INTENT.json` — never guessed.
 
-  Step 2 — Extract Pairs
-    query_intent()         → full topology from INTENT.json
-    → filter OSPF routers (have igp.ospf)
-    → enumerate P2P pairs from direct_links
-    → determine area + area_type per pair (handle ABR dual-area)
-    → scope filter: keep only pairs where both endpoints are in {D1C, C1J}
-    → present pair table → user confirms
+---
 
-  Step 3 — Research
-    search_knowledge_base(vendor=cisco_ios, protocol=ospf)
-    search_knowledge_base(vendor=juniper_junos, protocol=ospf)
-    → retrieve vendor CLI commands for each criterion
-    → retrieve RFC section references for each criterion
+## The General QA Skill (`/qa`)
 
-  Step 4 — Generate YAML Spec
-    → apply 8 criteria (ADJ-01..ADJ-08)
-    → populate query.ssh_cli from RAG results (vendor-specific)
-    → populate assertion schema from criteria table (type, field, expected, match_by)
-    → write output/spec/ospf_adjacency_C1J_D1C.yaml
+The `/qa` skill is the only skill in aiQA. It handles any protocol, any feature, any test type via natural language requests. No per-protocol skill files are needed.
 
-  Step 5 — Render Pytest
-    → transform spec entries into parametrized pytest functions
-    → write output/pytest/test_ospf_adjacency_C1J_D1C.py + conftest.py
+### 13-Step Workflow (Steps 0–12)
 
-  Step 6 — Render Ansible
-    → transform spec entries into one task per test entry
-    → write output/ansible/playbook_ospf_adjacency_C1J_D1C.yml + inventory.yml
+```
+Step 0  — Preflight         Verify MCP tools are responding
+Step 1  — Parse Request     Protocol, feature, device scope, failure mode
+Step 2  — Resolve Devices   Per-device intent queries (scoped) + list_devices
+Step 3  — Clarify           Ask if genuinely ambiguous (one round only)
+Step 4  — Research          KB queries: verification commands, RFC grounding, config/rollback commands
+Step 5  — Derive Criteria   Determine what tests to generate and with what assertions
+Step 6  — Present Test Plan Mandatory pause — user confirms before any files are generated
+Step 7  — Load spec-schema  Read .claude/spec-schema.md (YAML field definitions)
+Step 8  — Generate YAML     Write output/spec/<protocol>_<feature>[_scope].yaml
+Step 9  — Load spec-renderers  Read .claude/spec-renderers.md (pytest + Ansible patterns)
+Step 10 — Render Pytest     Write output/pytest/test_<...>.py + conftest.py
+Step 11 — Render Ansible    Write output/ansible/playbook_<...>.yml + inventory.yml
+Step 12 — Summary           Final table of outputs and test counts
+```
 
-  Step 7 — Summary
-    → report test count, breakdown by criterion
+### Scoped Intent Queries (Step 2)
+
+- Explicit device names in the request → `query_intent("<device>")` per device (one call each)
+- Role-based or "all" scope → `query_intent()` with no argument (full topology)
+
+This keeps input token consumption proportional to the scope of the request.
+
+### Step 6: Test Plan Confirmation
+
+The agent never generates files without user confirmation. The plan always includes a ⚠️ warning that tests will modify device configuration.
+
+```
+⚠️  These tests WILL modify device configuration. Rollback is automatic but is NOT
+    guaranteed if the connection drops mid-test. Do not run against production
+    devices without explicit approval.
+
+| # | Criterion | Setup (target) | Verify (target) | Expected outcome |
+|---|-----------|----------------|-----------------|------------------|
+| 1 | TMISMATCH-01 | C2A: set hello=15 | DC1A: check state | state != FULL |
+...
+
+Proceed?
+```
+
+If the request describes only verification of current state without specifying a condition to test, the agent asks the user to be more specific.
+
+---
+
+## Test Generation Examples
+
+### Example 1: `/qa OSPF timer mismatch tests between C1J and D1C`
+
+```
+Step 0  — Preflight: all 3 tools responding
+
+Step 1  — Parse:
+  protocol=ospf, feature=timer mismatch, devices={C1J, D1C}
+
+Step 2  — Resolve:
+  query_intent("C1J")  → junos, Area 0, hello=10, dead=40, RID=10.10.10.10
+  query_intent("D1C")  → ios, Area 0, hello=10, dead=40, RID=11.11.11.11
+  list_devices()       → cli_style, host for both
+
+Step 3  — No ambiguity → skip
+
+Step 4  — Research:
+  search_knowledge_base(vendor=juniper_junos, protocol=ospf)   → JunOS timer show + config/revert
+  search_knowledge_base(vendor=cisco_ios, protocol=ospf)       → IOS timer show + config/revert
+  search_knowledge_base(topic=rfc, protocol=ospf, query="hello dead timer adjacency")
+
+Step 5  — Criteria:
+  C1J (junos) ≠ D1C (ios) → cross-vendor → QC-8: both directions
+    TMISMATCH-01: set hello=15 on C1J → verify D1C neighbor not FULL → rollback
+    TMISMATCH-02: set dead=80 on C1J → verify D1C neighbor not FULL → rollback
+    TMISMATCH-03: set hello=15 on D1C → verify C1J neighbor not FULL → rollback
+    TMISMATCH-04: set dead=80 on D1C → verify C1J neighbor not FULL → rollback
+
+Step 6  — Present plan:
+  ⚠️  4 tests, all modify configuration
+  "Proceed?"
+  → User confirms
+
+Step 7  — Load .claude/spec-schema.md
+
+Step 8  — Generate YAML spec
+  → 4 tests
+  → write output/spec/ospf_timer_C1J_D1C.yaml
+
+Step 9  — Load .claude/spec-renderers.md
+
+Step 10 — Render Pytest
+  → try/finally for all tests, rollback registry in conftest.py
+  → write output/pytest/test_ospf_timer_C1J_D1C.py
+  → write output/pytest/conftest.py
+
+Step 11 — Render Ansible
+  → block/always for all tests
+  → write output/ansible/playbook_ospf_timer_C1J_D1C.yml
+  → write output/ansible/playbook_ospf_timer_C1J_D1C_rollback.yml
+  → write output/ansible/inventory.yml
+
+Step 12 — Summary: 4 tests
+```
+
+### Example 2: `/qa OSPF hello-interval mismatch test between A2A and A3A`
+
+```
+Step 1  — protocol=ospf, feature=hello mismatch, devices={A2A, A3A}
+Step 2  — A2A: eos, Area 1 stub | A3A: eos, Area 1 stub
+Step 4  — KB: arista_eos timer config + revert commands, RFC 2328 §10.5
+Step 5  — A2A (eos) = A3A (eos) → same-vendor → QC-8: ONE direction only
+          TMISMATCH-01: set hello=15 on A2A → verify A3A neighbor not FULL → rollback
+          TMISMATCH-02: set dead=80 on A2A → verify A3A neighbor not FULL → rollback
+          (no mirror — same teardown syntax, zero additional coverage)
+Step 6  — Present plan: ⚠️  2 tests, "Proceed?"
+Step 8  — Generate spec: 2 tests
+Step 10 — Pytest: try/finally × 2
+Step 11 — Ansible: block/always × 2 + rollback playbook
 ```
 
 ---
 
 ## Output Pipeline
 
-The three-stage output pipeline ensures the YAML spec is the canonical source — renderers are mechanical transforms, not independent test logic.
+The YAML spec is the canonical source of truth — renderers are mechanical transforms, not independent test logic.
 
 ```
 data/INTENT.json
@@ -91,63 +189,61 @@ data/INTENT.json
   YAML Spec                    ← canonical, framework-agnostic
   output/spec/
       │
-      ├──► Pytest Suite         ← scrapli SSH, parametrized from spec
+      ├──► Pytest Suite         ← scrapli SSH, try/finally for all tests
       │    output/pytest/
       │
-      └──► Ansible Playbook     ← cli_command module, tasks from spec
-           output/ansible/
+      └──► Ansible Playbook     ← cli_command module, block/always for all tests
+           output/ansible/        + emergency rollback playbook
 ```
 
-### YAML Spec
+### YAML Spec Fields
 
-Every test entry in the spec contains:
-- `id` — stable, sortable test identifier
-- `criterion` — which ADJ-XX (or future protocol criterion) applies
-- `rfc` — mandatory RFC section citation
-- `device` + `peer` — full inventory fields (host, platform, cli_style, interface)
-- `query.ssh_cli` — the exact vendor-specific show command
-- `assertion` — type, field, expected value, match_by (no ghost assertions)
-- `context` — topology fields (area, area_type)
+Every test entry contains:
+
+| Field | Description |
+|-------|-------------|
+| `id` | Stable, sortable test identifier (`<protocol>_<feature>_<criterion>_<deviceA>_<deviceB>`) |
+| `criterion` | Agent-derived criterion ID (e.g., `TMISMATCH-01`, `ADJ-03`) |
+| `rfc` | Mandatory specific RFC section citation |
+| `description` | Human-readable one-liner |
+| `device` + `peer` | Full inventory fields (host, platform, cli_style, interface) |
+| `query.ssh_cli` | Exact vendor-specific show command (the check step) |
+| `assertion` | Type, field, expected value, match_by — no ghost assertions |
+| `context` | Topology fields (area, area_type, etc.) |
+| `setup` | Target device, config command, pre-flight snapshot |
+| `wait` | Post-config convergence delay |
+| `teardown` | Rollback command, verify rollback succeeded |
 
 ### Pytest Renderer
 
-- Uses `scrapli` for SSH connections (platform mapped from `cli_style`)
+- Uses `scrapli` for SSH connections (cli_style mapped to scrapli platform)
 - `conftest.py` provides session-scoped connection fixtures parametrized by device
-- Each test sends `query.ssh_cli`, parses output, locates the correct row via `match_by`, asserts `field == expected`
-- Run with: `pytest output/pytest/ --junitxml=output/pytest/results.xml`
+- All tests: `try/finally` — pre-flight snapshot, configure, wait, assert, teardown always runs
+- Session-level rollback registry in `conftest.py` for interrupted suites
+- Run: `pytest output/pytest/ --junitxml=output/pytest/results.xml`
 
 ### Ansible Renderer
 
 - Uses `ansible.netcommon.cli_command` (generic) or platform-specific modules
-- One task per test entry: sends the CLI command, asserts the expected value
+- All tests: `block/always` — teardown in `always` block
+- Emergency rollback playbook generated alongside every playbook
 - Task names include criterion ID and description for traceability
 - `vars.rfc` annotation per task for audit trail
 
 ---
 
-## Scoped vs Full-Topology Runs
+## Quality Controls (QC-1 through QC-8)
 
-| Invocation | What it generates | Output filename suffix |
-|------------|-------------------|----------------------|
-| `/ospf-adj` | All OSPF adjacency pairs in topology | *(none)* |
-| `/ospf-adj D1C` | All pairs where D1C is an endpoint | `_D1C` |
-| `/ospf-adj D1C C1J` | Only pairs where **both** endpoints are in the list | `_C1J_D1C` |
-
-Device names in the suffix are sorted alphabetically so the filename is canonical regardless of argument order.
-
----
-
-## Adding a New Skill
-
-Each skill under `.claude/skills/<name>/` is self-contained. Adding a new protocol test category (e.g., BGP peering) requires no changes to `server.py` or `spec-format.md`.
-
-Steps:
-1. Create `.claude/skills/<name>/SKILL.md` — workflow, criteria table + assertion schemas, data extraction algorithm
-2. Add any new RFC or vendor docs to `docs/`
-3. Run `make ingest` to rebuild the KB
-4. Register the skill in the `Available Skills` table in `CLAUDE.md`
-
-The `spec-format.md` YAML schema is extensible — add new `context` fields for the new protocol without breaking existing skills.
+| Rule | Description |
+|------|-------------|
+| QC-1 | Every test cites a specific RFC section |
+| QC-2 | Bidirectional tests (adjacency, peering) generate one entry per direction |
+| QC-3 | `query.ssh_cli` uses the correct vendor command; one device, one executable CLI per entry |
+| QC-4 | `assertion.expected` is a specific value — never null, "any", or "not empty" |
+| QC-5 | `assertion.match_by.router_id` comes from intent data |
+| QC-6 | Test IDs follow `<protocol>_<feature>_<criterion>_<deviceA>_<deviceB>` (alpha order) |
+| QC-7 | Every entry has `setup` + `wait` + `teardown`; `teardown.verify_expected` == `setup.snapshot_expected` |
+| QC-8 | Cross-vendor pairs: tests in BOTH directions; same-vendor pairs: ONE direction ONLY |
 
 ---
 
@@ -155,6 +251,9 @@ The `spec-format.md` YAML schema is extensible — add new `context` fields for 
 
 | What | Where | How |
 |------|-------|-----|
-| Network intent + inventory | `data/INTENT.json` | Edit directly; one JSON object per router with roles, links, IGP config, and inventory fields |
+| Network intent + inventory | `data/INTENT.json` | Edit directly; one JSON object per router |
 | Protocol docs | `docs/*.md` | Add Markdown files; run `make ingest` to rebuild ChromaDB |
-| New skill | `.claude/skills/<name>/SKILL.md` | Create with criteria table + workflow; no server changes needed |
+| Rollback/revert patterns | `docs/vendor_*.md` | Each vendor doc has a "Configuration Revert Patterns" section |
+| Skill workflow | `.claude/skills/qa/SKILL.md` | Edit the general QA skill to adjust methodology |
+| YAML spec schema | `.claude/spec-schema.md` | Field definitions and schema rules |
+| Renderer patterns | `.claude/spec-renderers.md` | pytest and Ansible rendering guidance |

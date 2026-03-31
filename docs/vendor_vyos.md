@@ -116,6 +116,44 @@ Note: VyOS uses `show ip ospf` (IOS-style with `ip` prefix), unlike JunOS which 
 - **NBMA poll-interval**: Default 60 seconds (sent to non-adjacent neighbors). Configure per static-neighbor.
 - **Passive interface**: `passive-interface default` marks all interfaces passive; use `interface <iface> passive disable` to re-enable specific interfaces. Passive interfaces advertise the subnet but do not form adjacencies.
 
+## Configuration Revert Patterns
+
+**General rule**: `delete <config-path>` removes a configuration node and reverts to default. All changes are staged and require `commit` to activate (same model as JunOS). VyOS also supports `commit-confirm <minutes>` for a timed safety net — if you don't re-confirm within the window, config automatically rolls back.
+
+```
+delete protocols ospf interface <iface> hello-interval
+delete protocols ospf interface <iface> dead-interval
+delete protocols ospf interface <iface> cost
+delete protocols ospf interface <iface> network
+delete protocols ospf interface <iface> priority
+delete protocols ospf interface <iface> retransmit-interval
+delete protocols ospf interface <iface> transmit-delay
+delete protocols ospf interface <iface> authentication
+delete protocols ospf interface <iface> passive
+delete protocols ospf area <id> area-type           # reverts entire area type to normal
+delete protocols ospf area <id> area-type no-summary  # removes totally-stubby flag only
+delete protocols ospf area <id> range <prefix>      # removes summary range
+delete protocols ospf redistribute <protocol>       # removes redistribution
+```
+
+After any `delete`, run `commit` to activate.
+
+**Built-in rollback** (similar to JunOS):
+
+```
+rollback                 # revert staged but uncommitted changes
+commit-confirm <minutes> # timed safety net — auto-rollback if not re-confirmed
+```
+
+**Non-obvious exceptions**:
+
+| Scenario | Correct sequence | Gotcha |
+|----------|-----------------|--------|
+| Revert area type to normal | `delete protocols ospf area <id> area-type` + `commit` | Deletes the entire `area-type` node including all sub-options (no-summary, default-cost, translate). Single `delete` handles everything. |
+| Revert auth | `delete protocols ospf interface <iface> authentication` + `commit` | Removes entire auth block (type and key) in one operation — simpler than IOS/EOS. |
+| Revert passive interface override | `delete protocols ospf interface <iface> passive` | When `passive-interface default` is set globally, the per-interface override is `passive disable`. To re-enable passive on a specific interface after using the override: `set protocols ospf interface <iface> passive` (removes the `disable` flag). |
+| Revert hello-multiplier | `delete protocols ospf interface <iface> hello-multiplier` + `commit` | `hello-multiplier` and `hello-interval` are mutually exclusive. When multiplier is active, hello-interval in packets is advertised as 0. |
+
 ## Common Gotchas on VyOS
 
 - No OSPF process ID — VyOS does not use process IDs. Unlike IOS/EOS/AOS-CX, there is no `router ospf <pid>` concept. OSPF is a single global process per VRF.

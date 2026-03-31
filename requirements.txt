@@ -1,3 +1,7 @@
+# NOTE: torch is NOT listed here — it must be installed separately via Makefile
+# using the CPU wheels index: make install (runs: pip install torch --index-url https://download.pytorch.org/whl/cpu)
+# Running `pip install -r requirements.txt` directly will FAIL at runtime (missing torch).
+
 # MCP server
 fastmcp>=3.0,<4.0
 
