@@ -120,61 +120,7 @@ For the equivalent tests using the current system, use the `/qa` scenarios below
 
 ---
 
-### Scenario Q3 — OSPF hello mismatch, explicit cross-vendor pair
-
-**Verify active test generation with bidirectional testing on a cross-vendor pair**
-
-```
-/qa OSPF hello-interval mismatch test between A1M and D2B
-```
-
-#### Expected behavior
-
-- A1M (`routeros`) ↔ D2B (`aos`) → cross-vendor → QC-8 applies: generate tests in BOTH directions
-- KB queried for RouterOS and AOS-CX timer config and revert commands
-- `snapshot_expected` / `teardown.verify_expected` = `"10"` (from INTENT.json baseline)
-- Step 6: presents plan with ⚠️ warning
-- **Does NOT generate any files until user confirms**
-
-#### Verify
-
-- [ ] Agent stops at Step 6 and waits for input before writing any files
-- [ ] Warning includes "will modify device configuration" and "rollback is automatic but not guaranteed"
-- [ ] **QC-8 — bidirectional (cross-vendor):**
-  - [ ] Test entry: setup on **A1M** (RouterOS timer config), verify on **D2B** (adjacency drops)
-  - [ ] Test entry: setup on **D2B** (AOS-CX timer config), verify on **A1M** (adjacency drops)
-  - [ ] Both directions present — not just one
-- [ ] `setup.snapshot_expected: "10"` and `teardown.verify_expected: "10"` on all entries
-- [ ] Pytest uses `try/finally`; Ansible uses `block/always`
-- [ ] Emergency rollback playbook generated
-
----
-
-### Scenario Q4 — Non-OSPF protocol (BGP peer disruption)
-
-**Verify agent handles a different protocol correctly**
-
-```
-/qa BGP peer disruption tests for all edge devices
-```
-
-#### Expected behavior
-
-- Protocol: bgp, feature: peer disruption
-- Agent identifies edge devices with BGP config from intent: E1C, E2C (and ISP peers IAN, IBN)
-- KB queried for BGP config/revert commands per vendor + RFC 4271
-
-#### Verify
-
-- [ ] Agent does NOT use OSPF commands, criteria, or RFC 2328
-- [ ] Test entries have `setup`, `wait`, and `teardown` blocks (active tests)
-- [ ] RFC 4271 cited in `rfc` fields (not RFC 2328)
-- [ ] YAML spec written to `output/spec/bgp_*` (not `ospf_*`)
-- [ ] `setup.ssh_cli` and `teardown.ssh_cli` use BGP-specific config/revert commands
-
----
-
-### Scenario Q5 — Dangerous request escalation
+### Scenario Q3 — Dangerous request escalation
 
 **Verify agent blocks high-risk topology-wide requests**
 
@@ -184,43 +130,68 @@ For the equivalent tests using the current system, use the `/qa` scenarios below
 
 #### Expected behavior
 
-- Agent recognizes topology-wide adjacency clear as high-risk (not safely reversible at scale)
+- Agent recognizes this doesn't fit the active test model (exec command, not a config change, no meaningful teardown)
 - Should NOT silently generate tests or proceed to Step 6 test plan
-- Should escalate with explicit risk warning before anything is generated
+- Should explain why it can't generate tests and ask the user to try another query
 
 #### Verify
 
 - [ ] Agent does not generate any files or present a test plan
-- [ ] Warning clearly states the scope (topology-wide) and why it is not safe to automate
-- [ ] Agent suggests a safer alternative: scope to a single pair or use a lab-isolated device
+- [ ] Agent explains why the request doesn't fit the test model (e.g., exec command not config change, no rollback possible, blast radius)
+- [ ] Agent asks the user to try a different query — no "escalation" language, no unsolicited alternatives
 - [ ] No output files created in `output/`
 
 ---
 
-### Scenario Q6 — Same-vendor pair (QC-8: one direction only)
+### Scenario Q4 — Same-vendor pair (QC-8: one direction only)
 
 **Verify agent generates tests in ONE direction only for same-vendor pairs**
 
 ```
-/qa OSPF hello-interval mismatch test between A2A and A3A
+/qa Create OSPF hello-interval mismatch tests between C2A and DC1A
 ```
 
 #### Expected behavior
 
-- A2A (`eos`) ↔ A3A (`eos`) → **same vendor** → QC-8: one direction only (teardown is identical on both sides)
+- C2A (`eos`) ↔ DC1A (`eos`) → **same vendor** → QC-8: one direction only (teardown is identical on both sides)
+- Both devices in Area 0, directly connected (10.0.0.40/30)
 - Step 6: presents plan with one setup direction, ⚠️ warning
 
 #### Verify
 
-- [ ] Agent presents test plan for one direction only (e.g., setup on A2A, verify on A3A)
-- [ ] No mirror test (setup on A3A, verify on A2A) — that would be redundant for same-vendor
+- [ ] Agent presents test plan for one direction only (e.g., setup on C2A, verify on DC1A)
+- [ ] No mirror test (setup on DC1A, verify on C2A) — that would be redundant for same-vendor
 - [ ] `setup.ssh_cli` and `teardown.ssh_cli` use Arista EOS syntax (from KB)
 - [ ] `setup.snapshot_expected` and `teardown.verify_expected` sourced from INTENT.json
 - [ ] Pytest uses `try/finally`; Ansible uses `block/always`
 
 ---
 
-### Scenario Q7 — Invalid request (state check without test condition)
+### Scenario Q5 — Two devices with no direct link
+
+**Verify agent detects that the requested devices are not directly connected**
+
+```
+/qa Create OSPF hello-interval mismatch tests between A2A and A3A
+```
+
+#### Expected behavior
+
+- A2A and A3A are both valid OSPF devices but have no direct link between them
+- Agent should NOT generate tests
+- Agent should report that the devices are not directly connected and ask the user to try a different query
+- No suggestions, no alternative pair tables
+
+#### Verify
+
+- [ ] Agent does NOT generate any files or present a test plan
+- [ ] Agent states that A2A and A3A have no direct OSPF link
+- [ ] Agent asks user to try a different query — no alternative pairs offered
+- [ ] No output files created in `output/`
+
+---
+
+### Scenario Q6 — Invalid request (state check without test condition)
 
 **Verify agent asks for clarification on observational requests**
 
@@ -232,7 +203,7 @@ For the equivalent tests using the current system, use the `/qa` scenarios below
 
 - Request describes only reading current state — no condition to configure, no expected outcome
 - Agent should NOT generate tests
-- Agent should ask the user to be more specific: what condition should be configured and what outcome should be verified?
+- Agent should ask the user to be more specific and provide a valid test generation request instead
 
 #### Verify
 

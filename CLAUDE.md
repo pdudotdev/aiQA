@@ -40,6 +40,7 @@ All tests are active: configure a condition → wait → check the result → te
 - **Bidirectional**: For adjacency/peering tests, generate tests for both sides of every link unless the criterion is explicitly per-device (not per-pair).
 - **Vendor-specific**: Use the correct CLI command for each device's platform. Search the KB if unsure.
 - **Rollback guarantee**: Every test MUST have a `teardown` block. `teardown.verify_expected` must equal `setup.snapshot_expected`. Baseline values come from `INTENT.json` — never guessed.
+- **No unsolicited suggestions**: When a request is invalid or cannot be fulfilled (wrong devices, no direct link, not a valid test, dangerous scope), explain why and ask the user to try a different query. Do not suggest alternative queries, offer example commands, or provide tables of options.
 
 ## Data Model
 
