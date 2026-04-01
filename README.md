@@ -1,6 +1,6 @@
 # aiQA • AI-Powered Network Test Case Generation
 
-[![Version](https://img.shields.io/badge/version-1.2-1a1a2e)](https://github.com/pdudotdev/aiQA/releases/tag/v1.2.0)
+[![Version](https://img.shields.io/badge/version-1.3-1a1a2e)](https://github.com/pdudotdev/aiQA/releases/tag/v1.3.0)
 ![License](https://img.shields.io/badge/license-GPLv3-1a1a2e)
 [![Last Commit](https://img.shields.io/github/last-commit/pdudotdev/aiQA?color=1a1a2e)](https://github.com/pdudotdev/aiQA/commits/main/)
 
@@ -15,9 +15,8 @@
 
 Describe your network intent once. aiQA generates RFC-compliant test cases from it — vendor-specific CLI commands, precise assertions, and full traceability to RFC sections. Output is a framework-agnostic YAML spec rendered into ready-to-run pytest suites and Ansible playbooks.
 
-**Supported models:**
-- Haiku 4.5, Sonnet 4.6, Opus 4.6
-- **Default:** Opus 4.6, Effort Low
+**Recommended model:**
+- Opus 4.6, effort Medium
 
 **Output samples:**
 - See [**output_samples**](output_samples/)
@@ -25,7 +24,7 @@ Describe your network intent once. aiQA generates RFC-compliant test cases from 
 **Documentation:**
 - [**WORKFLOW.md**](metadata/workflow/WORKFLOW.md)
 
-**What's new in v1.2:**
+**What's new in v1.3:**
 - [**CHANGELOG.md**](CHANGELOG.md)
 
 ## Tech Stack
@@ -117,7 +116,7 @@ The skill:
 | Output | Path | Description |
 |--------|------|-------------|
 | YAML spec | `output/spec/<protocol>_<feature>[_<scope>].yaml` | Canonical, framework-agnostic test specification |
-| Pytest suite | `output/pytest/test_<protocol>_<feature>[_<scope>].py` | Executable tests using scrapli for SSH |
+| Pytest suite | `output/pytest/test_<protocol>_<feature>[_<scope>].py` | Executable tests using Netmiko for SSH |
 | Ansible playbook | `output/ansible/playbook_<protocol>_<feature>[_<scope>].yml` | Ansible tasks using `cli_command` module |
 | Emergency rollback | `output/ansible/playbook_<protocol>_<feature>_rollback.yml` | Unconditional teardown playbook |
 

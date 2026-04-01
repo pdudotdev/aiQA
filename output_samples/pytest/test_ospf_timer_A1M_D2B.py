@@ -1,132 +1,103 @@
-"""OSPF timer mismatch tests for A1M ↔ D2B.
+"""OSPF timer mismatch tests — A1M (routeros) ↔ D2B (aos).
 
-Cross-vendor pair: MikroTik RouterOS (A1M) ↔ Aruba AOS-CX (D2B).
-Both directions tested per QC-8.
+Criteria:
+  TMISMATCH-01  Hello-interval mismatch → adjacency drops  (RFC 2328 §10.5)
+  TMISMATCH-02  Dead-interval mismatch  → adjacency drops  (RFC 2328 §10.5)
 
-RFC 2328 §10.5 — Hello and dead timers MUST match for adjacency to form.
+Directions: both (cross-vendor pair).
 """
 
 import time
-import yaml
+
 import pytest
+import yaml
 from pathlib import Path
-from conftest import register_rollback, deregister_rollback, _poll_until
 
-SPEC_PATH = Path(__file__).resolve().parent.parent / "spec" / "ospf_timer_A1M_D2B.yaml"
+from conftest import (
+    ALL_TEST_ENTRIES,
+    COMMIT_PLATFORMS,
+    parse_and_match,
+    parse_field,
+    register_rollback,
+    deregister_rollback,
+)
 
-
-def load_tests():
-    with open(SPEC_PATH) as f:
-        spec = yaml.safe_load(f)
-    return spec["tests"]
-
-
-def parse_neighbor_state(output, router_id):
-    """Extract neighbor state for a given router ID from show output."""
-    for line in output.splitlines():
-        if router_id in line:
-            parts = line.split()
-            for i, part in enumerate(parts):
-                if part == router_id or part.strip(",") == router_id:
-                    # State is typically the first or a known-position field
-                    # For AOS-CX: show ip ospf neighbors → RID Priority State ...
-                    # For RouterOS: print detail → state=full
-                    break
-            # AOS-CX format: "RID  Priority  State  Dead-Time  Address  Interface"
-            if len(parts) >= 3:
-                return parts[2] if parts[0] == router_id else None
-    return None
-
-
-def parse_routeros_neighbor_state(output, router_id):
-    """Parse RouterOS neighbor detail output for a specific router ID."""
-    current_rid = None
-    current_state = None
-    for line in output.splitlines():
-        line = line.strip()
-        if "router-id=" in line:
-            for token in line.split():
-                if token.startswith("router-id="):
-                    current_rid = token.split("=", 1)[1]
-        if "state=" in line:
-            for token in line.split():
-                if token.startswith("state="):
-                    current_state = token.split("=", 1)[1].strip('"')
-        if current_rid == router_id and current_state:
-            return current_state
-    return None
-
-
-TEST_DATA = load_tests()
+# Filter entries for this specific test file
+_THIS_SPEC = Path(__file__).resolve().parent.parent / "spec" / "ospf_timer_A1M_D2B.yaml"
+with open(_THIS_SPEC) as _f:
+    _spec = yaml.safe_load(_f)
+_TESTS = _spec["tests"]
 
 
 @pytest.mark.parametrize(
     "test_entry",
-    TEST_DATA,
-    ids=[t["id"] for t in TEST_DATA],
+    _TESTS,
+    ids=[t["id"] for t in _TESTS],
 )
 def test_ospf_timer_mismatch(connections, test_entry):
-    """[{criterion}] {description} — {rfc}"""
+    """Active test: configure timer mismatch → wait → verify adjacency drops → teardown.
+
+    RFC 2328 §10.5 — Hello and dead timers MUST match on both sides of a
+    link.  A mismatch causes the neighbor to reject Hello packets; the dead
+    timer expires and the adjacency is torn down.
+    """
     setup = test_entry["setup"]
     teardown = test_entry["teardown"]
     wait = test_entry["wait"]
-    query = test_entry["query"]
     assertion = test_entry["assertion"]
+    cli_style = test_entry["device"]["cli_style"]
 
-    setup_device = setup["target"]
-    verify_device = test_entry["device"]["name"]
-    peer_rid = assertion["match_by"]["router_id"]
+    device_conn = connections[test_entry["device"]["name"]]
+    peer_conn = connections[test_entry["peer"]["name"]]
 
-    setup_conn = connections[setup_device]
-    verify_conn = connections[verify_device]
-
-    is_routeros_verify = test_entry["device"]["cli_style"] == "routeros"
-
-    # Pre-flight: verify baseline FULL adjacency
-    baseline_out = verify_conn.send_command(setup["snapshot_cli"]).result
-    if is_routeros_verify:
-        baseline_state = parse_routeros_neighbor_state(baseline_out, peer_rid)
-    else:
-        baseline_state = parse_neighbor_state(baseline_out, peer_rid)
-    assert baseline_state == setup["snapshot_expected"], (
-        f"Pre-flight failed on {verify_device}: "
-        f"neighbor {peer_rid} state={baseline_state!r}, expected={setup['snapshot_expected']!r}"
+    # --- Pre-flight: verify baseline ---
+    out = device_conn.send_command(setup["snapshot_cli"])
+    baseline = parse_field(out, setup["snapshot_field"])
+    assert baseline == setup["snapshot_expected"], (
+        f"Pre-flight failed on {test_entry['device']['name']}: "
+        f"{setup['snapshot_field']}={baseline!r}, expected {setup['snapshot_expected']!r}"
     )
 
-    register_rollback(setup_conn, teardown["ssh_cli"])
+    register_rollback(device_conn, teardown["ssh_cli"], cli_style)
     try:
-        # Setup: configure timer mismatch (config mode)
-        setup_conn.send_configs(setup["ssh_cli"].split("\n"))
+        # --- Setup: introduce timer mismatch ---
+        device_conn.send_config_set(setup["ssh_cli"].split("\n"))
+        if cli_style in COMMIT_PLATFORMS:
+            device_conn.commit()
 
-        # Wait for convergence
+        # --- Wait for dead timer expiry ---
         time.sleep(wait["seconds"])
 
-        # Verify: adjacency should NOT be FULL
-        result_out = verify_conn.send_command(query["ssh_cli"]).result
-        if is_routeros_verify:
-            actual_state = parse_routeros_neighbor_state(result_out, peer_rid)
-        else:
-            actual_state = parse_neighbor_state(result_out, peer_rid)
+        # --- Assert: adjacency should NOT be Full ---
+        result = peer_conn.send_command(test_entry["query"]["ssh_cli"])
+        actual = parse_and_match(result, assertion, assertion.get("match_by"))
 
-        assert actual_state != assertion["expected"], (
-            f"[{test_entry['criterion']}] {test_entry['description']}: "
-            f"neighbor {peer_rid} state={actual_state!r}, expected NOT {assertion['expected']!r}"
-        )
+        if assertion["type"] == "not_equal":
+            assert actual != assertion["expected"], (
+                f"[{test_entry['criterion']}] {test_entry['device']['name']}→"
+                f"{test_entry['peer']['name']}: neighbor state is still "
+                f"{actual!r}, expected NOT {assertion['expected']!r}"
+            )
+        else:
+            assert actual == assertion["expected"], (
+                f"[{test_entry['criterion']}] expected {assertion['expected']!r}, "
+                f"got {actual!r}"
+            )
+
     finally:
-        # Teardown: rollback config (config mode)
-        setup_conn.send_configs(teardown["ssh_cli"].split("\n"))
+        # --- Teardown: revert timer to default ---
+        device_conn.send_config_set(teardown["ssh_cli"].split("\n"))
+        if cli_style in COMMIT_PLATFORMS:
+            device_conn.commit()
 
-        # Wait for adjacency to restore
+        # Wait for reconvergence
         time.sleep(wait["seconds"])
 
-        # Verify rollback: adjacency should be FULL again
-        verify_out = verify_conn.send_command(teardown["verify_cli"]).result
-        if is_routeros_verify:
-            restored_state = parse_routeros_neighbor_state(verify_out, peer_rid)
-        else:
-            restored_state = parse_neighbor_state(verify_out, peer_rid)
-        assert restored_state == teardown["verify_expected"], (
-            f"ROLLBACK FAILED on {verify_device}: "
-            f"neighbor {peer_rid} state={restored_state!r}, expected={teardown['verify_expected']!r}"
+        # Verify rollback
+        verify = device_conn.send_command(teardown["verify_cli"])
+        restored = parse_field(verify, teardown["verify_field"])
+        assert restored == teardown["verify_expected"], (
+            f"ROLLBACK FAILED on {test_entry['device']['name']}: "
+            f"{teardown['verify_field']}={restored!r}, expected {teardown['verify_expected']!r}"
         )
-        deregister_rollback(setup_conn, teardown["ssh_cli"])
+        deregister_rollback(device_conn, teardown["ssh_cli"], cli_style)

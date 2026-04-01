@@ -38,7 +38,7 @@ The agent must warn the user and get explicit confirmation (at Step 6) before ge
 
 - **RFC grounding**: Every test must cite a specific RFC section. If you cannot cite one, search the KB before writing the test.
 - **No ghost assertions**: Every assertion must check a specific expected value. `assert output is not None` or `assert len(result) > 0` are not acceptable.
-- **Bidirectional**: For adjacency/peering tests, generate tests for both sides of every link unless the criterion is explicitly per-device (not per-pair).
+- **Bidirectional**: For adjacency/peering tests, generate tests for both sides of every link unless the criterion is explicitly per-device (not per-pair), or both devices share the same CLI style (same teardown syntax = zero additional coverage from mirroring).
 - **Vendor-specific**: Use the correct CLI command for each device's platform. Search the KB if unsure.
 - **Rollback guarantee**: Every test MUST have a `teardown` block. `teardown.verify_expected` must equal `setup.snapshot_expected`. Baseline values come from `INTENT.json` — never guessed.
 - **No unsolicited suggestions**: When a request is invalid or cannot be fulfilled (wrong devices, no direct link, not a valid test, dangerous scope), explain why and ask the user to try a different query. Do not suggest alternative queries, offer example commands, or provide tables of options.

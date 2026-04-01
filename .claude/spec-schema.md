@@ -26,23 +26,23 @@ metadata:
   test_count: <N>
 
 tests:
-  - id: <skill>_<criterion>_<deviceA>_<deviceB>   # deviceA < deviceB alphabetically
+  - id: <skill>_<criterion>_<setupDevice>_<verifyDevice>   # setup target first, verify target second (encodes direction)
     criterion: <criterion_id>     # e.g., TMISMATCH-01, ADJ-01
     rfc: "<RFC reference>"        # mandatory — e.g., "RFC 2328 §10.5"
     description: "<human-readable one-liner>"
-    device:
+    device:                       # the setup target — where the config change is applied
       name: <deviceA>
       host: <ip-address>
       platform: <platform>        # cisco_iosxe | arista_eos | juniper_junos | aruba_aoscx | mikrotik_routeros | vyos
       cli_style: <cli_style>      # ios | eos | junos | aos | routeros | vyos
       interface: <interface>      # optional
       ip: <ip>                    # optional
-    peer:                         # optional — for adjacency/peering tests
+    peer:                         # optional — the verify target. ALL fields below describe the PEER device itself, never the setup device.
       name: <deviceB>
       host: <ip-address>
       platform: <platform>
       cli_style: <cli_style>
-      rid: <router-id>            # optional
+      rid: <router-id>            # optional — the peer device's own router_id from INTENT.json
       interface: <interface>      # optional
       ip: <ip>                    # optional
     context:                      # protocol-specific topology fields
@@ -50,7 +50,7 @@ tests:
       area_type: <type>           # OSPF: normal | stub | nssa
       # extensible per protocol
     query:
-      ssh_cli: "<vendor-specific show command>"
+      ssh_cli: "<vendor-specific show command>"  # MUST be scoped to the specific test target (interface, neighbor, process)
     assertion:
       type: <assertion_type>
       field: <what to check>
@@ -62,8 +62,8 @@ tests:
     # All three blocks are mandatory for every test entry
     setup:
       target: <device-name>       # device to configure
-      ssh_cli: "<config command>"
-      snapshot_cli: "<show command>"
+      ssh_cli: "<config command>"   # config-mode commands ONLY — NEVER include mode-transition commands (configure terminal, conf t, exit, end)
+      snapshot_cli: "<show command>"  # MUST be scoped to the specific interface, neighbor, or process being tested
       snapshot_field: <field>
       snapshot_expected: "<value>" # from INTENT.json — never guessed
     wait:
@@ -74,10 +74,10 @@ tests:
       # IMPLEMENTATION NOTE: _poll_until() MUST exit with a timeout exception after
       # 'seconds' have elapsed. Polling interval is implementation-defined (default 5s).
     teardown:
-      ssh_cli: "<rollback command>"
-      verify_cli: "<show command>"
-      verify_field: <field>
-      verify_expected: "<value>"  # MUST equal setup.snapshot_expected
+      ssh_cli: "<rollback command>"  # config-mode commands ONLY — NEVER include mode-transition commands
+      verify_cli: "<show command>"  # MUST equal setup.snapshot_cli
+      verify_field: <field>         # MUST equal setup.snapshot_field
+      verify_expected: "<value>"    # MUST equal setup.snapshot_expected
 ```
 
 ---
@@ -96,6 +96,6 @@ Examples: `ospf_timer_TMISMATCH-01_A1M_D2B`, `ospf_timer_TMISMATCH-01_D2B_A1M`, 
 ## Schema Rules
 
 1. Every test entry MUST have `setup`, `wait`, AND `teardown` — all three, always.
-2. `teardown.verify_expected` MUST equal `setup.snapshot_expected`.
+2. Teardown verification MUST re-check the same parameter that was changed: `teardown.verify_cli` MUST equal `setup.snapshot_cli`, `teardown.verify_field` MUST equal `setup.snapshot_field`, and `teardown.verify_expected` MUST equal `setup.snapshot_expected`.
 3. `setup.snapshot_expected` MUST come from INTENT.json — never guessed.
 4. Do NOT create separate test entries for teardown/rollback verification — verification that the rollback succeeded belongs inside the `teardown` block of the same entry, not as a standalone test.

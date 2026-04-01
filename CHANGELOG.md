@@ -1,5 +1,39 @@
 # Changelog
 
+## v1.3 — 2026-04-01
+
+### Pytest Renderer — Migrated from scrapli to Netmiko
+
+- Replaced scrapli with Netmiko for all pytest SSH connections — fixes `AttributeError` on RouterOS and VyOS (scrapli's `GenericDriver` does not have `send_configs`)
+- `send_configs()` → `send_config_set()` — Netmiko's `NoConfig` mixin makes this work uniformly across all platforms, including RouterOS (no config mode)
+- Added `COMMIT_PLATFORMS` set (`junos`, `vyos`) — JunOS and VyOS require explicit `conn.commit()` after config changes to apply candidate config
+- Platform mapping updated to Netmiko device_type strings: `cisco_ios`, `arista_eos`, `juniper_junos`, `aruba_aoscx`, `mikrotik_routeros`, `vyos`
+- `conn.send_command(cmd).result` → `conn.send_command(cmd)` — Netmiko returns string directly
+- `conn.close()` → `conn.disconnect()`
+
+### Spec Schema and Quality Controls
+
+- **ID naming convention**: fixed contradiction — direction-encoded (`<setupDevice>_<verifyDevice>`), not alphabetical. Updated in spec-schema.md, SKILL.md QC-6, WORKFLOW.md
+- **device/peer semantics**: `device` = setup target, `peer` = verify target — now explicit in schema comments
+- **peer.rid**: clarified as the peer device's own router_id from INTENT.json
+- **QC-7 strengthened**: teardown verify_cli/verify_field/verify_expected MUST equal setup snapshot_cli/snapshot_field/snapshot_expected — ensures rollback verification checks the same parameter that was changed
+- **CLAUDE.md bidirectional rule**: added same-vendor exception to match QC-8 (same `cli_style` pairs → one direction only)
+- **Scope guard**: SKILL.md Step 1 warns for broad multi-protocol/multi-device requests
+
+### Renderer Improvements
+
+- conftest.py MUST use `spec_dir.glob("*.yaml")` — never hardcode spec filenames (shareability fix)
+- Parametrization MUST use loaded spec list — never hardcode indices
+- Emergency rollback playbook: all tasks MUST have `ignore_errors: true` (best-effort recovery)
+- `deregister_rollback` catches `ValueError` on mismatch (robustness fix)
+- spec-renderers.md template: fixed `match_by` access from `test_entry.get("match_by")` to `test_entry["assertion"].get("match_by")`
+
+### Documentation
+
+- WORKFLOW.md: all scrapli references updated to Netmiko; QC-6 and QC-7 updated; C1J RID corrected (10.10.10.10 → 22.22.22.11)
+
+---
+
 ## v1.2 — 2026-03-31
 
 ### All Tests Are Active — Tier Distinction Removed

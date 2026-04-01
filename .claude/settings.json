@@ -1,6 +1,6 @@
 {
   "model":"opus",
-  "effortLevel":"low",
+  "effortLevel":"high",
   "permissions": {
     "allow": [
       "Read",

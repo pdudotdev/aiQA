@@ -18,7 +18,7 @@ aiQA exposes 3 tools registered in `server.py`:
 
 `search_knowledge_base` performs RAG (Retrieval-Augmented Generation):
 
-1. **Ingestion** (one-time, via `make ingest`): Markdown files from `docs/` are chunked, embedded with `all-MiniLM-L6-v2`, and stored in ChromaDB with metadata (`vendor`, `topic`, `source`, `protocol`). Each chunk gets a contextual header prepended (`[Source: filename | Protocol: protocol]`) for better embedding quality.
+1. **Ingestion** (one-time, via `make ingest` → `ingest.py --clean`): Markdown files from `docs/` are chunked, embedded with `all-MiniLM-L6-v2`, and stored in ChromaDB with metadata (`vendor`, `topic`, `source`, `protocol`). Each chunk gets a contextual header prepended (`[Source: filename | Protocol: protocol]`) for better embedding quality. Metadata is derived from filenames by `ingest.py:extract_metadata()`.
 2. **Query**: The search query is embedded into the same vector space. ChromaDB returns the top-k most similar chunks by cosine distance.
 3. **Filters**: Optional `vendor`, `topic`, and `protocol` filters narrow results before similarity search. Compound filtering is supported (e.g., `vendor=cisco_ios` + `protocol=ospf`).
 
@@ -61,18 +61,18 @@ The `/qa` skill is the only skill in aiQA. It handles any protocol, any feature,
 ### 13-Step Workflow (Steps 0–12)
 
 ```
-Step 0  — Preflight         Verify MCP tools are responding
-Step 1  — Parse Request     Protocol, feature, device scope, failure mode
-Step 2  — Resolve Devices   Per-device intent queries (scoped) + list_devices
-Step 3  — Clarify           Ask if genuinely ambiguous (one round only)
-Step 4  — Research          KB queries: verification commands, RFC grounding, config/rollback commands
-Step 5  — Derive Criteria   Determine what tests to generate and with what assertions
+Step 0  — Preflight         list_devices() + search_knowledge_base() — verify MCP server responds
+Step 1  — Parse Request     Extract protocol, feature, device scope, failure mode from $ARGUMENTS
+Step 2  — Resolve Devices   query_intent("<device>") per device + list_devices() — scope from INTENT.json
+Step 3  — Clarify           Ask user if genuinely ambiguous (one round only)
+Step 4  — Research          search_knowledge_base() — vendor show/config/rollback commands + RFC grounding
+Step 5  — Derive Criteria   Apply QC-1 through QC-8 to build test criteria from intent + KB results
 Step 6  — Present Test Plan Mandatory pause — user confirms before any files are generated
-Step 7  — Load spec-schema  Read .claude/spec-schema.md (YAML field definitions)
+Step 7  — Load spec-schema  Read .claude/spec-schema.md (YAML field definitions + schema rules)
 Step 8  — Generate YAML     Write output/spec/<protocol>_<feature>[_scope].yaml
-Step 9  — Load spec-renderers  Read .claude/spec-renderers.md (pytest + Ansible patterns)
-Step 10 — Render Pytest     Write output/pytest/test_<...>.py + conftest.py
-Step 11 — Render Ansible    Write output/ansible/playbook_<...>.yml + inventory.yml
+Step 9  — Load spec-renderers  Read .claude/spec-renderers.md (pytest + Ansible rendering patterns)
+Step 10 — Render Pytest     Write output/pytest/test_<...>.py + conftest.py (Netmiko SSH, try/finally)
+Step 11 — Render Ansible    Write output/ansible/playbook_<...>.yml + inventory.yml (block/always)
 Step 12 — Summary           Final table of outputs and test counts
 ```
 
@@ -115,7 +115,7 @@ Step 1  — Parse:
   protocol=ospf, feature=timer mismatch, devices={C1J, D1C}
 
 Step 2  — Resolve:
-  query_intent("C1J")  → junos, Area 0, hello=10, dead=40, RID=10.10.10.10
+  query_intent("C1J")  → junos, Area 0, hello=10, dead=40, RID=22.22.22.11
   query_intent("D1C")  → ios, Area 0, hello=10, dead=40, RID=11.11.11.11
   list_devices()       → cli_style, host for both
 
@@ -189,7 +189,7 @@ data/INTENT.json
   YAML Spec                    ← canonical, framework-agnostic
   output/spec/
       │
-      ├──► Pytest Suite         ← scrapli SSH, try/finally for all tests
+      ├──► Pytest Suite         ← Netmiko SSH, try/finally for all tests
       │    output/pytest/
       │
       └──► Ansible Playbook     ← cli_command module, block/always for all tests
@@ -216,17 +216,19 @@ Every test entry contains:
 
 ### Pytest Renderer
 
-- Uses `scrapli` for SSH connections (cli_style mapped to scrapli platform)
+- Uses `Netmiko` for SSH connections (cli_style mapped to Netmiko platform)
 - `conftest.py` provides session-scoped connection fixtures parametrized by device
 - All tests: `try/finally` — pre-flight snapshot, configure, wait, assert, teardown always runs
 - Session-level rollback registry in `conftest.py` for interrupted suites
-- Run: `pytest output/pytest/ --junitxml=output/pytest/results.xml`
+- JUnit XML auto-configured via `conftest.py` `pytest_configure` hook — `output/pytest/results.xml`
+- Run: `pytest output/pytest/`
 
 ### Ansible Renderer
 
 - Uses `ansible.netcommon.cli_command` (generic) or platform-specific modules
 - All tests: `block/always` — teardown in `always` block
 - Emergency rollback playbook generated alongside every playbook
+- JUnit XML auto-configured via generated `ansible.cfg` (`junit` callback enabled)
 - Task names include criterion ID and description for traceability
 - `vars.rfc` annotation per task for audit trail
 
@@ -241,8 +243,8 @@ Every test entry contains:
 | QC-3 | `query.ssh_cli` uses the correct vendor command; one device, one executable CLI per entry |
 | QC-4 | `assertion.expected` is a specific value — never null, "any", or "not empty" |
 | QC-5 | `assertion.match_by.router_id` comes from intent data |
-| QC-6 | Test IDs follow `<protocol>_<feature>_<criterion>_<deviceA>_<deviceB>` (alpha order) |
-| QC-7 | Every entry has `setup` + `wait` + `teardown`; `teardown.verify_expected` == `setup.snapshot_expected` |
+| QC-6 | Test IDs follow `<protocol>_<feature>_<criterion>_<setupDevice>_<verifyDevice>` (setup target first, verify target second) |
+| QC-7 | Every entry has `setup` + `wait` + `teardown`; teardown verify re-checks same parameter: `verify_cli` = `snapshot_cli`, `verify_field` = `snapshot_field`, `verify_expected` = `snapshot_expected` |
 | QC-8 | Cross-vendor pairs: tests in BOTH directions; same-vendor pairs: ONE direction ONLY |
 
 ---

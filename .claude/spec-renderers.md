@@ -7,58 +7,70 @@ The YAML spec schema is in `.claude/spec-schema.md`.
 
 ## Pytest Renderer
 
-Generate under `output/pytest/`:
+Generate under `output/pytest/`. Uses **Netmiko** for SSH connections.
 
 ### `conftest.py`
-- Device connection fixtures using `scrapli` (SSH)
-- Load device data from `data/INTENT.json` — structure: `{"routers": {"A1M": {...}, ...}}`. Fields (`host`, `cli_style`) are directly on each router object.
+- Device connection fixtures using `netmiko.ConnectHandler` (SSH)
 - Fixture scope: `session` for connection reuse
 - Session-level rollback registry (see below)
+- MUST load all YAML specs via `spec_dir.glob("*.yaml")` — never hardcode a specific filename
+- Shared across test files — do not duplicate if it already exists
 
 ### `test_<skill>.py`
-- Parametrized from YAML spec — iterate `tests` list
+- Parametrized from YAML spec — load the `tests` list and parametrize directly from it (never hardcode indices like `[0, 1, 2, 3]`)
 - Docstring: include `criterion`, `rfc`, `description`
 - **No ghost assertions** — never `assert result` or `assert len(x) > 0`
-- Run: `pytest --junitxml=output/pytest/results.xml`
+- Run: `pytest output/pytest/` (JUnit XML auto-generated at `output/pytest/results.xml` via `conftest.py` hook)
 
 ### Test pattern — `try/finally`
 
 Every test follows this pattern:
 
 ```python
-def test_active(device_conn, peer_conn, test_entry):
+def test_active(connections, test_entry):
     setup = test_entry["setup"]
     teardown = test_entry["teardown"]
+    wait = test_entry["wait"]
+    cli_style = test_entry["device"]["cli_style"]
+
+    device_conn = connections[test_entry["device"]["name"]]
+    peer_conn = connections[test_entry["peer"]["name"]]
 
     # Pre-flight: verify baseline (show command → send_command)
-    out = device_conn.send_command(setup["snapshot_cli"]).result
+    out = device_conn.send_command(setup["snapshot_cli"])
     baseline = parse_field(out, setup["snapshot_field"])
     assert baseline == setup["snapshot_expected"], f"Pre-flight failed: {baseline!r} != {setup['snapshot_expected']!r}"
 
     register_rollback(device_conn, teardown["ssh_cli"])
     try:
-        # Setup: config command → send_configs (enters config mode automatically)
-        device_conn.send_configs(setup["ssh_cli"].split("\n"))
+        # Setup: config command → send_config_set (handles config mode per platform)
+        device_conn.send_config_set(setup["ssh_cli"].split("\n"))
+        if cli_style in COMMIT_PLATFORMS:
+            device_conn.commit()
         # wait
-        if test_entry["wait"]["type"] in ("convergence", "fixed"):
-            time.sleep(test_entry["wait"]["seconds"])
-        elif test_entry["wait"]["type"] == "poll":
-            _poll_until(device_conn, test_entry["wait"])
+        if wait["type"] in ("convergence", "fixed"):
+            time.sleep(wait["seconds"])
+        elif wait["type"] == "poll":
+            _poll_until(peer_conn, wait)
         # assert (show command → send_command)
-        result = peer_conn.send_command(test_entry["query"]["ssh_cli"]).result
-        actual = parse_and_match(result, test_entry["assertion"], test_entry.get("match_by"))
+        result = peer_conn.send_command(test_entry["query"]["ssh_cli"])
+        actual = parse_and_match(result, test_entry["assertion"], test_entry["assertion"].get("match_by"))
         assert actual == test_entry["assertion"]["expected"]
     finally:
-        # Teardown: config command → send_configs
-        device_conn.send_configs(teardown["ssh_cli"].split("\n"))
-        # Verify rollback (show command → send_command)
-        verify = device_conn.send_command(teardown["verify_cli"]).result
-        restored = parse_field(verify, teardown["verify_field"])
-        assert restored == teardown["verify_expected"], f"ROLLBACK FAILED: {restored!r}"
+        # Teardown: config command → send_config_set
+        device_conn.send_config_set(teardown["ssh_cli"].split("\n"))
+        if cli_style in COMMIT_PLATFORMS:
+            device_conn.commit()
+        # Wait for reconvergence
+        time.sleep(wait["seconds"])
+        # Verify rollback — re-check the same field that was changed (setup.snapshot_*)
+        verify = device_conn.send_command(setup["snapshot_cli"])
+        restored = parse_field(verify, setup["snapshot_field"])
+        assert restored == setup["snapshot_expected"], f"ROLLBACK FAILED: {restored!r}"
         deregister_rollback(device_conn, teardown["ssh_cli"])
 ```
 
-**Important:** Use `send_configs()` (config mode) for `setup.ssh_cli` and `teardown.ssh_cli`. Use `send_command()` (operational mode) for show commands (`snapshot_cli`, `query.ssh_cli`, `verify_cli`). scrapli's `send_configs()` automatically enters and exits config mode on platforms that require it (IOS, EOS, JunOS, AOS-CX). RouterOS commands work with either method since RouterOS has no separate config mode.
+**Important:** Use `send_config_set()` for `setup.ssh_cli` and `teardown.ssh_cli`. Use `send_command()` for show commands (`snapshot_cli`, `query.ssh_cli`). Netmiko's `send_config_set()` automatically enters and exits config mode on platforms that require it (IOS, EOS, JunOS, AOS-CX). For RouterOS (no config mode), Netmiko's `NoConfig` mixin sends commands directly — no special handling needed. For JunOS and VyOS, call `conn.commit()` after `send_config_set` to apply candidate config. Netmiko's `send_command()` returns a string directly (no `.result` accessor).
 
 ### Session rollback registry (conftest.py)
 
@@ -66,13 +78,15 @@ def test_active(device_conn, peer_conn, test_entry):
 _rollback_registry = []
 
 def register_rollback(conn, cmd): _rollback_registry.append((conn, cmd))
-def deregister_rollback(conn, cmd): _rollback_registry.remove((conn, cmd))
+def deregister_rollback(conn, cmd):
+    try: _rollback_registry.remove((conn, cmd))
+    except ValueError: pass
 
 @pytest.fixture(scope="session", autouse=True)
 def emergency_rollback():
     yield
     for conn, cmd in _rollback_registry:
-        try: conn.send_configs(cmd.split("\n"))
+        try: conn.send_config_set(cmd.split("\n"))
         except Exception as e: print(f"[EMERGENCY ROLLBACK] {cmd}: {e}")
 ```
 
@@ -88,27 +102,50 @@ def _poll_until(conn, wait_spec):
     condition = wait_spec["poll_condition"]
     deadline = time.time() + timeout
     while time.time() < deadline:
-        out = conn.send_command(cli).result
+        out = conn.send_command(cli)
         if condition in out:
             return
         time.sleep(interval)
     raise TimeoutError(f"Poll condition {condition!r} not met after {timeout}s")
 ```
 
+### JUnit XML auto-configuration (conftest.py)
+
+```python
+def pytest_configure(config):
+    """Auto-enable JUnit XML output if not specified on command line."""
+    if not config.option.xmlpath:
+        config.option.xmlpath = str(Path(__file__).parent / "results.xml")
+```
+
+Generates `output/pytest/results.xml` next to the test files regardless of CWD. If the user passes `--junitxml=custom.xml`, their path takes precedence.
+
 ### Connection scoping
 
-The `connections` fixture MUST only connect to devices referenced in the YAML spec — not all devices in INTENT.json. Extract unique device names from the spec's `tests[].device.name` and `tests[].peer.name` fields, then connect only to those. This prevents test failures when unused devices are unreachable.
+The `connections` fixture MUST only connect to devices referenced in the YAML spec — not all devices in INTENT.json. Load all specs via `spec_dir.glob("*.yaml")`, extract unique device names from `tests[].device.name` and `tests[].peer.name`, then connect only to those. This prevents test failures when unused devices are unreachable. Use `conn.disconnect()` for cleanup.
 
-### Platform → Scrapli mapping
+### Platform → Netmiko mapping
 
-| cli_style | scrapli platform |
-|-----------|-----------------|
-| ios | `cisco_iosxe` |
-| eos | `arista_eos` |
-| junos | `juniper_junos` |
-| aos | `aruba_aoscx` |
-| routeros | `mikrotik_routeros` |
-| vyos | `linux` | *Not a built-in scrapli platform — requires `scrapli_community` or a custom platform definition* |
+| cli_style | Netmiko device_type | Config mode | Commit required? |
+|-----------|-------------------|-------------|-----------------|
+| ios | `cisco_ios` | `configure terminal` | No |
+| eos | `arista_eos` | `configure terminal` | No |
+| junos | `juniper_junos` | `configure` | **Yes** — `conn.commit()` |
+| aos | `aruba_aoscx` | `configure` | No |
+| routeros | `mikrotik_routeros` | None (`NoConfig`) | No |
+| vyos | `vyos` | `configure` | **Yes** — `conn.commit()` + `conn.exit_config_mode()` |
+
+```python
+PLATFORM_MAP = {
+    "ios": "cisco_ios",
+    "eos": "arista_eos",
+    "junos": "juniper_junos",
+    "aos": "aruba_aoscx",
+    "routeros": "mikrotik_routeros",
+    "vyos": "vyos",
+}
+COMMIT_PLATFORMS = {"junos", "vyos"}
+```
 
 ---
 
@@ -122,15 +159,17 @@ Generate under `output/ansible/`:
 
 ### `playbook_<skill>.yml`
 - One play per device or criterion category
-- Use `ansible.netcommon.cli_command` with `network_cli`, or platform-specific modules
+- Use `ansible.netcommon.cli_command` for show/exec commands, `ansible.netcommon.cli_config` for config commands
 - Per test entry: task name = `[<criterion>] <description>`, send `query.ssh_cli`, assert `assertion.expected`
 - Include `vars.rfc` per task
 - **No ghost assertions**
-- JUnit output: `ANSIBLE_JUNIT_OUTPUT_DIR=output/ansible/` with `junit` callback
+- JUnit output: auto-configured via `ansible.cfg` (`junit` callback enabled, results written to `output/ansible/`)
 
 ### Test pattern — `block/always`
 
 Every test MUST use `block/always` — never `post_tasks`, `handlers`, or `rescue`. `post_tasks` does NOT run if a task in `tasks` fails, which means teardown is skipped and the device is left misconfigured. `block/always` guarantees teardown runs regardless of test outcome — this is the Ansible equivalent of pytest's `try/finally`.
+
+**Important:** Use `ansible.netcommon.cli_config` for config commands (`setup.ssh_cli`, `teardown.ssh_cli`). Use `ansible.netcommon.cli_command` for show/exec commands (`setup.snapshot_cli`, `query.ssh_cli`, `teardown.verify_cli`). `cli_config` automatically enters and exits config mode on platforms that require it (IOS, EOS, JunOS, AOS-CX). RouterOS has no separate config mode, but `cli_config` still works — use it uniformly for all config commands regardless of platform.
 
 Every test follows this pattern:
 
@@ -145,7 +184,8 @@ Every test follows this pattern:
         that: "'{{ setup.snapshot_expected }}' in baseline.stdout"
         fail_msg: "Pre-flight failed"
     - name: "Setup"
-      ansible.netcommon.cli_command: { command: "{{ setup.ssh_cli }}" }
+      ansible.netcommon.cli_config:
+        config: "{{ setup.ssh_cli }}"
     - ansible.builtin.pause: { seconds: "{{ wait.seconds }}" }
     - name: "Verify"
       ansible.netcommon.cli_command: { command: "{{ query.ssh_cli }}" }
@@ -154,17 +194,37 @@ Every test follows this pattern:
         that: "'{{ assertion.expected }}' in result.stdout"
         fail_msg: "[{{ criterion }}] Expected {{ assertion.expected }}"
   always:
-    - ansible.netcommon.cli_command: { command: "{{ teardown.ssh_cli }}" }
-    - ansible.netcommon.cli_command: { command: "{{ teardown.verify_cli }}" }
+    - name: "Teardown"
+      ansible.netcommon.cli_config:
+        config: "{{ teardown.ssh_cli }}"
+    - ansible.builtin.pause: { seconds: "{{ wait.seconds }}" }
+    - name: "Verify rollback"
+      ansible.netcommon.cli_command: { command: "{{ teardown.verify_cli }}" }
       register: rollback_check
     - ansible.builtin.assert:
         that: "'{{ teardown.verify_expected }}' in rollback_check.stdout"
         fail_msg: "ROLLBACK FAILED"
 ```
 
+**Cross-device tests:** When `setup.target` differs from the play's `hosts`, use `delegate_to: {{ setup.target }}` on the Setup and Teardown tasks. Pre-flight, Verify, and Rollback verification run on the play host (the verification device).
+
 ### Emergency rollback playbook
 
-Always generate `playbook_<skill>_rollback.yml` alongside the main playbook. This runs all teardown commands unconditionally — use it to recover from interrupted test runs.
+Always generate `playbook_<skill>_rollback.yml` alongside the main playbook. This runs all teardown commands unconditionally — use it to recover from interrupted test runs. Rollback tasks use `ansible.netcommon.cli_config` (they send config commands to revert changes). Every task in the rollback playbook MUST have `ignore_errors: true` so that one failed rollback does not prevent subsequent rollbacks from running.
+
+### `ansible.cfg`
+
+Generate `output/ansible/ansible.cfg` (shared — do not duplicate if it already exists):
+
+```ini
+[defaults]
+callbacks_enabled = junit
+
+[callback_junit]
+output_dir = ./
+```
+
+Auto-enables JUnit XML results when `ansible-playbook` is run from `output/ansible/` or with `ANSIBLE_CONFIG=output/ansible/ansible.cfg`.
 
 ### Ansible network_os mapping
 

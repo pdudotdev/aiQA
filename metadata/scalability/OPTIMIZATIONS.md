@@ -33,8 +33,8 @@ Networking concepts share heavy lexical overlap: "neighbor adjacency" appears in
 ### 3. Precision vs. Recall Divergence
 At 75 chunks, 5/5 results may be relevant. At 750 chunks, perhaps 2-3/5 are. At 7,500, it could be 1/5 or worse — the rest are "close but wrong protocol." Recall stays high but precision drops.
 
-### 4. Metadata Filtering Gaps
-Current `vendor` and `topic` filters narrow the search space, but `protocol` filtering is needed to prevent cross-protocol contamination as more protocols are added.
+### 4. Metadata Filtering — Remaining Gaps
+The `protocol` metadata field (implemented in v1.0) addresses the primary cross-protocol contamination risk. The remaining gap is **intra-protocol ambiguity**: as vendor docs grow, a query like "OSPF neighbor show command" may return chunks from the wrong vendor within the same protocol. The `vendor` filter handles this when used, but queries that omit vendor filtering are still exposed.
 
 ## Optimizations
 
@@ -188,7 +188,7 @@ Full topology runs (`/qa ... for all devices`) still fetch the complete INTENT.j
 
 ---
 
-## Recommended Implementation Order
+## Recommended Implementation Order (RAG Precision)
 
 | Priority | Optimization | Status |
 |----------|-------------|--------|
