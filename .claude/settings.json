@@ -6,8 +6,8 @@
       "Read",
       "Write(output/**)",
       "Edit(output/**)",
-      "Bash(mkdir -p)",
-      "Bash(ls *output*)",
+      "Bash(mkdir)",
+      "Bash(ls)",
       "mcp__aiqa__list_devices",
       "mcp__aiqa__query_intent",
       "mcp__aiqa__search_knowledge_base"

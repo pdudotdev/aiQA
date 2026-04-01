@@ -1,18 +1,17 @@
+---
 all:
+  vars:
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_user: "{{ lookup('env', 'NETWORK_USER') | default('admin', true) }}"
+    ansible_password: "{{ lookup('env', 'NETWORK_PASSWORD') | default('admin', true) }}"
   children:
     routeros:
       hosts:
         A1M:
           ansible_host: 172.20.20.201
           ansible_network_os: community.routeros.routeros
-          ansible_connection: ansible.netcommon.network_cli
-          ansible_user: admin
-          ansible_password: admin
     aos:
       hosts:
         D2B:
           ansible_host: 172.20.20.206
           ansible_network_os: arubanetworks.aoscx.aoscx
-          ansible_connection: ansible.netcommon.network_cli
-          ansible_user: admin
-          ansible_password: admin

@@ -38,7 +38,7 @@ The `protocol` metadata field (implemented in v1.0) addresses the primary cross-
 
 ## Optimizations
 
-### Tier 1: Low Effort, High Impact
+### Priority 1: Low Effort, High Impact
 
 #### 1. Add a `protocol` Metadata Field — Implemented (v1.0)
 Every chunk is tagged with its protocol (`ospf`, `bgp`, `eigrp`, etc.) during ingestion. Filter on it at query time:
@@ -61,7 +61,7 @@ Replace `all-MiniLM-L6-v2` (384d) with a larger model when the corpus grows:
 
 Higher dimensionality encodes finer-grained semantic distinctions (e.g., "OSPF neighbor adjacency" vs. "BGP neighbor adjacency").
 
-### Tier 2: Medium Effort, Significant Impact
+### Priority 2: Medium Effort, Significant Impact
 
 #### 4. Two-Stage Retrieval with Cross-Encoder Re-Ranking
 - **Stage 1:** Coarse retrieval — fetch top-20 candidates with loose filtering (bi-encoder / cosine similarity, as today).
@@ -92,7 +92,7 @@ results = vs.similarity_search(
 **Option B — BM25 + vector fusion:**
 Implement reciprocal rank fusion (RRF) combining BM25 keyword scores with cosine similarity scores for true hybrid retrieval.
 
-### Tier 3: Higher Effort, Future-Proofing
+### Priority 3: Higher Effort, Future-Proofing
 
 #### 7. Agentic Retrieval (Query Decomposition)
 Decompose complex test generation queries into targeted sub-queries:
@@ -126,7 +126,7 @@ One-size-fits-all (800 chars) becomes suboptimal as document diversity grows:
 
 ## Problem Statement
 
-Each `/qa` run loads multiple files into the agent's context window. At v1.0, this included a full 24 KB INTENT.json dump (even for 2-device scoped requests), a combined 14.5 KB spec-format.md loaded upfront before any generation, plus the SKILL.md and CLAUDE.md. For a scoped 2-device run on Sonnet 4.6 (~$3/M input tokens), total input overhead was ~65-75K tokens (~$0.20-0.40 per run).
+Each `/qa` run loads multiple files into the agent's context window. At v1.0, this included a full 24 KB INTENT.json dump (even for 2-device scoped requests), a combined 14.5 KB spec-format.md loaded upfront before any generation, plus the SKILL.md and CLAUDE.md. For a scoped 2-device run, total input overhead was ~65-75K tokens.
 
 Context bloat has two costs: money and reasoning quality. The agent's effective attention is finite — large irrelevant chunks compete with the content that actually matters for the current step.
 
@@ -174,7 +174,7 @@ The skill workflow now explicitly gates each file read to the step that needs it
 | Scoped 2-device run — intent | ~24 KB | ~2.4 KB | **-90%** |
 | Spec file loaded at generation step | 14.5 KB | 4 KB | **-72%** |
 | Total spec + intent overhead | ~38.5 KB | ~11.7 KB | **-70%** |
-| Estimated cost (Sonnet 4.6, 2-device) | ~$0.08–0.12 | ~$0.03–0.05 | **~-60%** |
+| Estimated cost (2-device, model-dependent) | ~$0.08–0.12 | ~$0.03–0.05 | **~-60%** |
 
 Full topology runs (`/qa ... for all devices`) still fetch the complete INTENT.json — that's unavoidable and correct.
 

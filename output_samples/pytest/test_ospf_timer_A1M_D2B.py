@@ -1,56 +1,54 @@
-"""OSPF timer mismatch tests — A1M (routeros) ↔ D2B (aos).
+"""OSPF timer mismatch tests — A1M (routeros) <-> D2B (aos).
 
 Criteria:
-  TMISMATCH-01  Hello-interval mismatch → adjacency drops  (RFC 2328 §10.5)
-  TMISMATCH-02  Dead-interval mismatch  → adjacency drops  (RFC 2328 §10.5)
+  TMISMATCH-01  Hello interval mismatch (RFC 2328 Section 10.5)
+  TMISMATCH-02  Dead interval mismatch  (RFC 2328 Section 10.5)
 
-Directions: both (cross-vendor pair).
+Both directions tested (cross-vendor pair).
 """
 
 import time
+from pathlib import Path
 
 import pytest
 import yaml
-from pathlib import Path
 
 from conftest import (
-    ALL_TEST_ENTRIES,
     COMMIT_PLATFORMS,
     parse_and_match,
     parse_field,
     register_rollback,
     deregister_rollback,
+    _poll_until,
 )
 
-# Filter entries for this specific test file
-_THIS_SPEC = Path(__file__).resolve().parent.parent / "spec" / "ospf_timer_A1M_D2B.yaml"
-with open(_THIS_SPEC) as _f:
-    _spec = yaml.safe_load(_f)
-_TESTS = _spec["tests"]
+
+SPEC_FILE = Path(__file__).resolve().parent.parent / "spec" / "ospf_timer_A1M_D2B.yaml"
 
 
-@pytest.mark.parametrize(
-    "test_entry",
-    _TESTS,
-    ids=[t["id"] for t in _TESTS],
-)
+def _load_tests():
+    with open(SPEC_FILE) as f:
+        doc = yaml.safe_load(f)
+    return doc["tests"]
+
+
+@pytest.mark.parametrize("test_entry", _load_tests(), ids=lambda t: t["id"])
 def test_ospf_timer_mismatch(connections, test_entry):
-    """Active test: configure timer mismatch → wait → verify adjacency drops → teardown.
+    """Active test: configure timer mismatch -> wait -> verify adjacency drops -> rollback.
 
-    RFC 2328 §10.5 — Hello and dead timers MUST match on both sides of a
-    link.  A mismatch causes the neighbor to reject Hello packets; the dead
-    timer expires and the adjacency is torn down.
+    Criterion: {criterion}
+    RFC: {rfc}
+    Description: {description}
     """
     setup = test_entry["setup"]
     teardown = test_entry["teardown"]
     wait = test_entry["wait"]
-    assertion = test_entry["assertion"]
     cli_style = test_entry["device"]["cli_style"]
 
     device_conn = connections[test_entry["device"]["name"]]
     peer_conn = connections[test_entry["peer"]["name"]]
 
-    # --- Pre-flight: verify baseline ---
+    # ── Pre-flight: verify baseline ──────────────────────────────────────
     out = device_conn.send_command(setup["snapshot_cli"])
     baseline = parse_field(out, setup["snapshot_field"])
     assert baseline == setup["snapshot_expected"], (
@@ -58,34 +56,43 @@ def test_ospf_timer_mismatch(connections, test_entry):
         f"{setup['snapshot_field']}={baseline!r}, expected {setup['snapshot_expected']!r}"
     )
 
-    register_rollback(device_conn, teardown["ssh_cli"], cli_style)
+    register_rollback(device_conn, teardown["ssh_cli"])
     try:
-        # --- Setup: introduce timer mismatch ---
+        # ── Setup: apply mismatched timer ────────────────────────────────
         device_conn.send_config_set(setup["ssh_cli"].split("\n"))
         if cli_style in COMMIT_PLATFORMS:
             device_conn.commit()
 
-        # --- Wait for dead timer expiry ---
-        time.sleep(wait["seconds"])
+        # ── Wait for dead timer expiry ───────────────────────────────────
+        if wait["type"] in ("convergence", "fixed"):
+            time.sleep(wait["seconds"])
+        elif wait["type"] == "poll":
+            _poll_until(peer_conn, wait)
 
-        # --- Assert: adjacency should NOT be Full ---
+        # ── Assert: adjacency should NOT be Full ─────────────────────────
         result = peer_conn.send_command(test_entry["query"]["ssh_cli"])
-        actual = parse_and_match(result, assertion, assertion.get("match_by"))
+        actual = parse_and_match(
+            result,
+            test_entry["assertion"],
+            test_entry["assertion"].get("match_by"),
+        )
+        assertion_type = test_entry["assertion"]["type"]
+        expected = test_entry["assertion"]["expected"]
 
-        if assertion["type"] == "not_equal":
-            assert actual != assertion["expected"], (
-                f"[{test_entry['criterion']}] {test_entry['device']['name']}→"
-                f"{test_entry['peer']['name']}: neighbor state is still "
-                f"{actual!r}, expected NOT {assertion['expected']!r}"
+        if assertion_type == "not_equal":
+            assert actual != expected, (
+                f"[{test_entry['criterion']}] {test_entry['assertion']['field']} "
+                f"is still {actual!r} on {test_entry['peer']['name']} — "
+                f"expected it to change from {expected!r} after timer mismatch"
             )
         else:
-            assert actual == assertion["expected"], (
-                f"[{test_entry['criterion']}] expected {assertion['expected']!r}, "
-                f"got {actual!r}"
+            assert actual == expected, (
+                f"[{test_entry['criterion']}] {test_entry['assertion']['field']}="
+                f"{actual!r} on {test_entry['peer']['name']}, expected {expected!r}"
             )
 
     finally:
-        # --- Teardown: revert timer to default ---
+        # ── Teardown: revert timer to default ────────────────────────────
         device_conn.send_config_set(teardown["ssh_cli"].split("\n"))
         if cli_style in COMMIT_PLATFORMS:
             device_conn.commit()
@@ -94,10 +101,10 @@ def test_ospf_timer_mismatch(connections, test_entry):
         time.sleep(wait["seconds"])
 
         # Verify rollback
-        verify = device_conn.send_command(teardown["verify_cli"])
-        restored = parse_field(verify, teardown["verify_field"])
-        assert restored == teardown["verify_expected"], (
+        verify = device_conn.send_command(setup["snapshot_cli"])
+        restored = parse_field(verify, setup["snapshot_field"])
+        assert restored == setup["snapshot_expected"], (
             f"ROLLBACK FAILED on {test_entry['device']['name']}: "
-            f"{teardown['verify_field']}={restored!r}, expected {teardown['verify_expected']!r}"
+            f"{setup['snapshot_field']}={restored!r}, expected {setup['snapshot_expected']!r}"
         )
-        deregister_rollback(device_conn, teardown["ssh_cli"], cli_style)
+        deregister_rollback(device_conn, teardown["ssh_cli"])

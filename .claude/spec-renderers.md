@@ -156,6 +156,7 @@ Generate under `output/ansible/`:
 ### `inventory.yml`
 - Derived from INTENT.json. Group by `location` or `cli_style`.
 - `ansible_host` = `host`; `ansible_network_os` = see mapping below.
+- Credentials via env var with fallback as group vars under `all.vars`: `ansible_user: "{{ lookup('env', 'NETWORK_USER') | default('admin', true) }}"` and `ansible_password: "{{ lookup('env', 'NETWORK_PASSWORD') | default('admin', true) }}"`.
 
 ### `playbook_<skill>.yml`
 - One play per device or criterion category

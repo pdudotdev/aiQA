@@ -62,7 +62,7 @@ tests:
     # All three blocks are mandatory for every test entry
     setup:
       target: <device-name>       # device to configure
-      ssh_cli: "<config command>"   # config-mode commands ONLY — NEVER include mode-transition commands (configure terminal, conf t, exit, end)
+      ssh_cli: "<config command>"   # MUST include the full config-mode path: submode navigation (interface X, router ospf N) + the command. NEVER include terminal-level transitions (configure terminal, conf t, exit, end). Example: "interface Ethernet0/1\nip ospf hello-interval 15" — NOT just "ip ospf hello-interval 15".
       snapshot_cli: "<show command>"  # MUST be scoped to the specific interface, neighbor, or process being tested
       snapshot_field: <field>
       snapshot_expected: "<value>" # from INTENT.json — never guessed
@@ -74,7 +74,7 @@ tests:
       # IMPLEMENTATION NOTE: _poll_until() MUST exit with a timeout exception after
       # 'seconds' have elapsed. Polling interval is implementation-defined (default 5s).
     teardown:
-      ssh_cli: "<rollback command>"  # config-mode commands ONLY — NEVER include mode-transition commands
+      ssh_cli: "<rollback command>"  # same rules as setup.ssh_cli: full config-mode path with submode navigation, no terminal-level transitions
       verify_cli: "<show command>"  # MUST equal setup.snapshot_cli
       verify_field: <field>         # MUST equal setup.snapshot_field
       verify_expected: "<value>"    # MUST equal setup.snapshot_expected

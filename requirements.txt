@@ -12,3 +12,9 @@ langchain-chroma>=1.0,<2.0
 langchain-text-splitters>=0.3,<1.0
 sentence-transformers>=3.0,<4.0
 
+# Test execution (optional — only needed to run the generated test suites)
+# netmiko>=4.0,<5.0              # pytest: SSH connections to network devices
+# pytest>=8.0,<9.0               # pytest: test runner
+# pyyaml>=6.0,<7.0               # pytest: YAML spec loading
+# ansible-core>=2.15              # ansible: playbook runner (collections installed separately via ansible-galaxy)
+

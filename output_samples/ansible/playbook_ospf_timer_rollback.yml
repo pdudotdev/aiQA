@@ -1,36 +1,38 @@
 ---
-# Emergency Rollback — OSPF Timer Mismatch Tests (A1M ↔ D2B)
-# Run this to revert ALL timer changes if a test run was interrupted.
-# Every task has ignore_errors: true so one failure won't block the rest.
+# Emergency Rollback — OSPF Timer Mismatch Tests (A1M, D2B)
+#
+# Reverts ALL timer changes unconditionally. Run this to recover from
+# interrupted test runs. Every task has ignore_errors: true so one
+# failure does not block subsequent rollbacks.
 
-- name: "Emergency rollback — A1M timer defaults"
+- name: "Emergency rollback — A1M timers"
   hosts: A1M
   gather_facts: false
   tasks:
-    - name: "Revert hello-interval to default on A1M ether3"
+    - name: "Revert hello-interval on A1M ether3"
       ansible.netcommon.cli_config:
         config: '/routing ospf interface-template set [find where networks~"10.1.1.4"] hello-interval='
       ignore_errors: true
 
-    - name: "Revert dead-interval to default on A1M ether3"
+    - name: "Revert dead-interval on A1M ether3"
       ansible.netcommon.cli_config:
         config: '/routing ospf interface-template set [find where networks~"10.1.1.4"] dead-interval='
       ignore_errors: true
 
-- name: "Emergency rollback — D2B timer defaults"
+- name: "Emergency rollback — D2B timers"
   hosts: D2B
   gather_facts: false
   tasks:
-    - name: "Revert hello-interval to default on D2B 1/1/2"
+    - name: "Revert hello-interval on D2B 1/1/2"
       ansible.netcommon.cli_config:
         config: |
           interface 1/1/2
-            no ip ospf hello-interval
+          no ip ospf hello-interval
       ignore_errors: true
 
-    - name: "Revert dead-interval to default on D2B 1/1/2"
+    - name: "Revert dead-interval on D2B 1/1/2"
       ansible.netcommon.cli_config:
         config: |
           interface 1/1/2
-            no ip ospf dead-interval
+          no ip ospf dead-interval
       ignore_errors: true

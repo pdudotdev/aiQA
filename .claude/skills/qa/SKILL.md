@@ -190,7 +190,7 @@ Do not proceed to Step 8 without loading it. Do NOT load `.claude/spec-renderers
 Apply the confirmed criteria to each device/pair in scope.
 
 Before writing, verify every test entry against QC-1 through QC-8. Check especially:
-- `setup.ssh_cli` and `teardown.ssh_cli` contain only config-mode commands (no mode-transition commands like `configure terminal`, `exit`, `end`)
+- `setup.ssh_cli` and `teardown.ssh_cli` include the full config-mode path: submode navigation (e.g., `interface Ethernet0/1\n`) + the command. For interface-level commands on IOS/EOS/AOS-CX, the command alone without interface context will fail at global config level. Never include terminal-level transitions (`configure terminal`, `exit`, `end`).
 - Show commands in `snapshot_cli` and `query.ssh_cli` are scoped to the specific test target (interface, neighbor, process)
 - All `peer` fields describe the peer device itself, not the setup device
 - Test IDs use the criterion ID (e.g., `TMISMATCH-01`), not a descriptive name

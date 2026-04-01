@@ -3,15 +3,18 @@ metadata:
   protocol: ospf
   generated: "2026-04-01T00:00:00Z"
   intent_source: data/INTENT.json
-  scope: A1M,D2B
+  scope: A1M, D2B
   pair_count: 1
   test_count: 4
 
 tests:
+  # ────────────────────────────────────────────────────────────────────────────
+  # TMISMATCH-01: Hello interval mismatch — Setup A1M, Verify D2B
+  # ────────────────────────────────────────────────────────────────────────────
   - id: ospf_timer_TMISMATCH-01_A1M_D2B
     criterion: TMISMATCH-01
-    rfc: "RFC 2328 §10.5"
-    description: "Configure hello-interval mismatch on A1M, verify adjacency drops on D2B"
+    rfc: "RFC 2328 Section 10.5"
+    description: "Configure hello-interval 15s on A1M ether3 (default 10s), verify adjacency to D2B drops"
     device:
       name: A1M
       host: 172.20.20.201
@@ -41,22 +44,25 @@ tests:
     setup:
       target: A1M
       ssh_cli: "/routing ospf interface-template set [find where networks~\"10.1.1.4\"] hello-interval=15"
-      snapshot_cli: "/routing ospf interface print detail without-paging where interface=ether3"
+      snapshot_cli: "/routing ospf interface print detail where interface=ether3 without-paging"
       snapshot_field: hello-interval
       snapshot_expected: "10"
     wait:
-      type: convergence
+      type: fixed
       seconds: 45
     teardown:
       ssh_cli: "/routing ospf interface-template set [find where networks~\"10.1.1.4\"] hello-interval="
-      verify_cli: "/routing ospf interface print detail without-paging where interface=ether3"
+      verify_cli: "/routing ospf interface print detail where interface=ether3 without-paging"
       verify_field: hello-interval
       verify_expected: "10"
 
+  # ────────────────────────────────────────────────────────────────────────────
+  # TMISMATCH-01: Hello interval mismatch — Setup D2B, Verify A1M
+  # ────────────────────────────────────────────────────────────────────────────
   - id: ospf_timer_TMISMATCH-01_D2B_A1M
     criterion: TMISMATCH-01
-    rfc: "RFC 2328 §10.5"
-    description: "Configure hello-interval mismatch on D2B, verify adjacency drops on A1M"
+    rfc: "RFC 2328 Section 10.5"
+    description: "Configure hello-interval 15s on D2B 1/1/2 (default 10s), verify adjacency to A1M drops"
     device:
       name: D2B
       host: 172.20.20.206
@@ -85,23 +91,26 @@ tests:
         router_id: "11.11.11.22"
     setup:
       target: D2B
-      ssh_cli: "ip ospf hello-interval 15"
+      ssh_cli: "interface 1/1/2\nip ospf hello-interval 15"
       snapshot_cli: "show ip ospf interface 1/1/2"
       snapshot_field: hello-interval
       snapshot_expected: "10"
     wait:
-      type: convergence
+      type: fixed
       seconds: 45
     teardown:
-      ssh_cli: "no ip ospf hello-interval"
+      ssh_cli: "interface 1/1/2\nno ip ospf hello-interval"
       verify_cli: "show ip ospf interface 1/1/2"
       verify_field: hello-interval
       verify_expected: "10"
 
+  # ────────────────────────────────────────────────────────────────────────────
+  # TMISMATCH-02: Dead interval mismatch — Setup A1M, Verify D2B
+  # ────────────────────────────────────────────────────────────────────────────
   - id: ospf_timer_TMISMATCH-02_A1M_D2B
     criterion: TMISMATCH-02
-    rfc: "RFC 2328 §10.5"
-    description: "Configure dead-interval mismatch on A1M, verify adjacency drops on D2B"
+    rfc: "RFC 2328 Section 10.5"
+    description: "Configure dead-interval 60s on A1M ether3 (default 40s), verify adjacency to D2B drops"
     device:
       name: A1M
       host: 172.20.20.201
@@ -130,23 +139,26 @@ tests:
         router_id: "1.1.1.1"
     setup:
       target: A1M
-      ssh_cli: "/routing ospf interface-template set [find where networks~\"10.1.1.4\"] dead-interval=120"
-      snapshot_cli: "/routing ospf interface print detail without-paging where interface=ether3"
+      ssh_cli: "/routing ospf interface-template set [find where networks~\"10.1.1.4\"] dead-interval=60"
+      snapshot_cli: "/routing ospf interface print detail where interface=ether3 without-paging"
       snapshot_field: dead-interval
       snapshot_expected: "40"
     wait:
-      type: convergence
+      type: fixed
       seconds: 45
     teardown:
       ssh_cli: "/routing ospf interface-template set [find where networks~\"10.1.1.4\"] dead-interval="
-      verify_cli: "/routing ospf interface print detail without-paging where interface=ether3"
+      verify_cli: "/routing ospf interface print detail where interface=ether3 without-paging"
       verify_field: dead-interval
       verify_expected: "40"
 
+  # ────────────────────────────────────────────────────────────────────────────
+  # TMISMATCH-02: Dead interval mismatch — Setup D2B, Verify A1M
+  # ────────────────────────────────────────────────────────────────────────────
   - id: ospf_timer_TMISMATCH-02_D2B_A1M
     criterion: TMISMATCH-02
-    rfc: "RFC 2328 §10.5"
-    description: "Configure dead-interval mismatch on D2B, verify adjacency drops on A1M"
+    rfc: "RFC 2328 Section 10.5"
+    description: "Configure dead-interval 60s on D2B 1/1/2 (default 40s), verify adjacency to A1M drops"
     device:
       name: D2B
       host: 172.20.20.206
@@ -175,15 +187,15 @@ tests:
         router_id: "11.11.11.22"
     setup:
       target: D2B
-      ssh_cli: "ip ospf dead-interval 120"
+      ssh_cli: "interface 1/1/2\nip ospf dead-interval 60"
       snapshot_cli: "show ip ospf interface 1/1/2"
       snapshot_field: dead-interval
       snapshot_expected: "40"
     wait:
-      type: convergence
+      type: fixed
       seconds: 45
     teardown:
-      ssh_cli: "no ip ospf dead-interval"
+      ssh_cli: "interface 1/1/2\nno ip ospf dead-interval"
       verify_cli: "show ip ospf interface 1/1/2"
       verify_field: dead-interval
       verify_expected: "40"

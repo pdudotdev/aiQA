@@ -61,7 +61,7 @@ All tests are active: configure a condition → wait → check the result → te
 
 ## Installation
 
-**Prerequisites:** Python 3.11+
+**Prerequisites:** Python 3.12+
 
 **Step 1 - Install and ingest:**
 ```bash
@@ -117,7 +117,7 @@ The skill:
 |--------|------|-------------|
 | YAML spec | `output/spec/<protocol>_<feature>[_<scope>].yaml` | Canonical, framework-agnostic test specification |
 | Pytest suite | `output/pytest/test_<protocol>_<feature>[_<scope>].py` | Executable tests using Netmiko for SSH |
-| Ansible playbook | `output/ansible/playbook_<protocol>_<feature>[_<scope>].yml` | Ansible tasks using `cli_command` module |
+| Ansible playbook | `output/ansible/playbook_<protocol>_<feature>[_<scope>].yml` | Ansible tasks using `cli_command` and `cli_config` modules |
 | Emergency rollback | `output/ansible/playbook_<protocol>_<feature>_rollback.yml` | Unconditional teardown playbook |
 
 **Safety model**: Every test has a mandatory `teardown` block. pytest uses `try/finally` (teardown always runs). Ansible uses `block/always`. A session-level rollback registry in `conftest.py` covers interrupted test runs. Cross-vendor pairs test both directions; same-vendor pairs test one direction only.
@@ -146,6 +146,11 @@ See [**OPTIMIZATIONS.md**](metadata/scalability/OPTIMIZATIONS.md) for the full o
 aiQA/
 ├── server.py                     # FastMCP server (3 tools)
 ├── ingest.py                     # RAG ingestion pipeline
+├── CLAUDE.md                     # Agent system prompt (tools, quality standards, data model)
+├── CHANGELOG.md                  # Version history
+├── TOPOLOGY.yml                  # ContainerLab topology definition
+├── Makefile                      # Setup automation (make setup / ingest / clean)
+├── requirements.txt
 ├── data/
 │   ├── INTENT.json               # Network design intent + inventory (16 devices)
 │   └── chroma/                   # ChromaDB vector store (generated)
@@ -155,24 +160,22 @@ aiQA/
 │   ├── rfc4271_bgp.md            # BGP-4
 │   ├── rfc4760_mpbgp.md          # MP-BGP
 │   ├── rfc7868_eigrp.md          # EIGRP
-│   └── vendor_*_<protocol>.md     # e.g. vendor_cisco_ios_ospf.md, vendor_cisco_ios_bgp.md
-├── output/
-│   ├── spec/                     # Generated YAML test specifications
-│   ├── pytest/                   # Generated pytest test files
-│   └── ansible/                  # Generated Ansible playbooks
-├── metadata/
-│   ├── scalability/              # RAG optimization roadmap
-│   └── workflow/                 # End-to-end workflow documentation
+│   └── vendor_*_<protocol>.md    # e.g. vendor_cisco_ios_ospf.md, vendor_cisco_ios_bgp.md
 ├── .claude/
 │   ├── spec-schema.md            # YAML spec schema — loaded at Step 7, before generation
 │   ├── spec-renderers.md         # pytest + Ansible renderer guidance — loaded at Step 9, before rendering
-│   └── skills/
-│       └── qa/
-│           └── SKILL.md          # /qa general QA methodology skill (13-step workflow, QC-1 through QC-8)
-├── CLAUDE.md                     # Agent system prompt (tools, quality standards, data model)
-├── Makefile                      # Setup automation (make setup / ingest / clean)
-├── requirements.txt
-└── README.md
+│   └── skills/qa/
+│       └── SKILL.md              # /qa general QA methodology skill (13-step workflow, QC-1 through QC-8)
+├── output/                       # Generated test artifacts
+│   ├── spec/                     # YAML test specifications
+│   ├── pytest/                   # pytest test files
+│   └── ansible/                  # Ansible playbooks
+├── output_samples/               # Reference output for showcase
+├── testing/                      # Manual test scenarios and RAG retrieval tests
+├── metadata/
+│   ├── scalability/              # RAG optimization roadmap
+│   └── workflow/                 # End-to-end workflow documentation
+└── lab_configs/                  # Test network device configurations
 ```
 
 ## Disclaimer
@@ -181,7 +184,7 @@ You are responsible for defining your own network inventory and design intent, b
 
 ## License
 
-Licensed under [**GNUv3.0**](LICENSE).
+Licensed under [**GPLv3**](LICENSE).
 
 ## Collaborations
 

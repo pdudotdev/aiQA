@@ -50,7 +50,7 @@ setup  →  wait  →  assert  →  teardown (always runs)
 | `wait` | Allow protocol convergence after the config change | `type` (convergence/fixed/poll), `seconds` |
 | `teardown` | Revert the config change; verify rollback succeeded | `ssh_cli`, `verify_cli`, `verify_field`, `verify_expected` |
 
-`teardown.verify_expected` must equal `setup.snapshot_expected`. Both values come from `INTENT.json` — never guessed.
+Teardown verification re-checks the same parameter that was changed: `teardown.verify_cli` must equal `setup.snapshot_cli`, `teardown.verify_field` must equal `setup.snapshot_field`, and `teardown.verify_expected` must equal `setup.snapshot_expected`. All values come from `INTENT.json` — never guessed.
 
 ---
 
@@ -122,16 +122,16 @@ Step 2  — Resolve:
 Step 3  — No ambiguity → skip
 
 Step 4  — Research:
+  search_knowledge_base(topic=rfc, protocol=ospf, query="hello dead timer adjacency")  → RFC 2328 §10.5
   search_knowledge_base(vendor=juniper_junos, protocol=ospf)   → JunOS timer show + config/revert
   search_knowledge_base(vendor=cisco_ios, protocol=ospf)       → IOS timer show + config/revert
-  search_knowledge_base(topic=rfc, protocol=ospf, query="hello dead timer adjacency")
 
 Step 5  — Criteria:
   C1J (junos) ≠ D1C (ios) → cross-vendor → QC-8: both directions
-    TMISMATCH-01: set hello=15 on C1J → verify D1C neighbor not FULL → rollback
-    TMISMATCH-02: set dead=80 on C1J → verify D1C neighbor not FULL → rollback
-    TMISMATCH-03: set hello=15 on D1C → verify C1J neighbor not FULL → rollback
-    TMISMATCH-04: set dead=80 on D1C → verify C1J neighbor not FULL → rollback
+    TMISMATCH-01 (C1J→D1C): set hello=15 on C1J → verify D1C neighbor not FULL → rollback
+    TMISMATCH-01 (D1C→C1J): set hello=15 on D1C → verify C1J neighbor not FULL → rollback
+    TMISMATCH-02 (C1J→D1C): set dead=80 on C1J → verify D1C neighbor not FULL → rollback
+    TMISMATCH-02 (D1C→C1J): set dead=80 on D1C → verify C1J neighbor not FULL → rollback
 
 Step 6  — Present plan:
   ⚠️  4 tests, all modify configuration
@@ -160,20 +160,19 @@ Step 11 — Render Ansible
 Step 12 — Summary: 4 tests
 ```
 
-### Example 2: `/qa OSPF hello-interval mismatch test between A2A and A3A`
+### Example 2: `/qa Create OSPF hello-interval mismatch tests between C2A and DC1A`
 
 ```
-Step 1  — protocol=ospf, feature=hello mismatch, devices={A2A, A3A}
-Step 2  — A2A: eos, Area 1 stub | A3A: eos, Area 1 stub
+Step 1  — protocol=ospf, feature=hello mismatch, devices={C2A, DC1A}
+Step 2  — C2A: eos, Area 0, VRF1 | DC1A: eos, Area 0, VRF1, direct link 10.0.0.40/30
 Step 4  — KB: arista_eos timer config + revert commands, RFC 2328 §10.5
-Step 5  — A2A (eos) = A3A (eos) → same-vendor → QC-8: ONE direction only
-          TMISMATCH-01: set hello=15 on A2A → verify A3A neighbor not FULL → rollback
-          TMISMATCH-02: set dead=80 on A2A → verify A3A neighbor not FULL → rollback
+Step 5  — C2A (eos) = DC1A (eos) → same-vendor → QC-8: ONE direction only
+          TMISMATCH-01: set hello=15 on C2A → verify DC1A neighbor not FULL → rollback
           (no mirror — same teardown syntax, zero additional coverage)
-Step 6  — Present plan: ⚠️  2 tests, "Proceed?"
-Step 8  — Generate spec: 2 tests
-Step 10 — Pytest: try/finally × 2
-Step 11 — Ansible: block/always × 2 + rollback playbook
+Step 6  — Present plan: ⚠️  1 test, "Proceed?"
+Step 8  — Generate spec: 1 test
+Step 10 — Pytest: try/finally × 1
+Step 11 — Ansible: block/always × 1 + rollback playbook
 ```
 
 ---
@@ -202,7 +201,7 @@ Every test entry contains:
 
 | Field | Description |
 |-------|-------------|
-| `id` | Stable, sortable test identifier (`<protocol>_<feature>_<criterion>_<deviceA>_<deviceB>`) |
+| `id` | Stable, sortable test identifier (`<protocol>_<feature>_<criterion>_<setupDevice>_<verifyDevice>` — encodes direction) |
 | `criterion` | Agent-derived criterion ID (e.g., `TMISMATCH-01`, `ADJ-03`) |
 | `rfc` | Mandatory specific RFC section citation |
 | `description` | Human-readable one-liner |

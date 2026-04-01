@@ -100,18 +100,20 @@ For the equivalent tests using the current system, use the `/qa` scenarios below
 **Verify agent resolves a role-based scope from intent data**
 
 ```
-/qa OSPF adjacency mismatch tests for all Access layer devices
+/qa OSPF timer mismatch tests for all Access layer devices
 ```
 
 #### Expected behavior
 
 - Agent calls `query_intent()` (full topology — scope is role-based, not explicit devices)
 - Identifies Access-layer OSPF routers: A1M, A2A, A3A, A4M
-- Derives 8 stub pairs: A1M↔D1C, A1M↔D2B, A2A↔D1C, A2A↔D2B, A3A↔D1C, A3A↔D2B, A4M↔D1C, A4M↔D2B
+- Derives 8 pairs: A1M↔D1C, A1M↔D2B, A2A↔D1C, A2A↔D2B, A3A↔D1C, A3A↔D2B, A4M↔D1C, A4M↔D2B
+- 32 tests: 2 criteria (hello + dead) × 8 pairs × 2 directions (all cross-vendor)
 - Step 6: presents test plan covering all 8 pairs with ⚠️ warning
 
 #### Verify
 
+- [ ] 32 test entries (2 criteria × 8 pairs × 2 directions)
 - [ ] 8 pairs presented, all Area 1 stub
 - [ ] All test entries have `setup`, `wait`, and `teardown` blocks
 - [ ] KB queried for all relevant vendors: mikrotik_ros (A1M, A4M), arista_eos (A2A, A3A), cisco_ios (D1C), aruba_aoscx (D2B)
