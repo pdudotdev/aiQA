@@ -18,14 +18,17 @@ Describe your network intent once. aiQA generates RFC-compliant test cases from 
 **Recommended model:**
 - Opus 4.6, effort Medium
 
+**Capabilities:**
+- See [**test_scenarios**](testing/test_scenarios.md)
+
 **Output samples:**
 - See [**output_samples**](output_samples/)
 
 **Documentation:**
-- [**WORKFLOW.md**](metadata/workflow/WORKFLOW.md)
+- See [**WORKFLOW.md**](metadata/workflow/WORKFLOW.md)
 
 **What's new in v1.3:**
-- [**CHANGELOG.md**](CHANGELOG.md)
+- See [**CHANGELOG.md**](CHANGELOG.md)
 
 ## Tech Stack
 
