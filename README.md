@@ -15,8 +15,8 @@
 
 Describe your network intent once. aiQA generates RFC-compliant test cases from it — vendor-specific CLI commands, precise assertions, and full traceability to RFC sections. Output is a framework-agnostic YAML spec rendered into ready-to-run pytest suites and Ansible playbooks.
 
-**Recommended model:**
-- Opus 4.6, effort Medium
+**Recommended models:**
+- Opus 4.6+ (1M)
 
 **Capabilities:**
 - See [**test_scenarios**](testing/test_scenarios.md)
@@ -189,7 +189,5 @@ You are responsible for defining your own network inventory and design intent, b
 
 Licensed under [**GPLv3**](LICENSE).
 
-## Collaborations
-
-Interested in collaborating?
-- **LinkedIn:** [**LinkedIn**](https://www.linkedin.com/in/tmihaicatalin/)
+## Hi
+Wanna say hello? Send me a DM at [**LinkedIn**](https://www.linkedin.com/in/tmihaicatalin/)
